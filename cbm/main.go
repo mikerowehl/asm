@@ -5,21 +5,23 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
-// ref is a reference to an address. It can either be immediate or the name of
-// a symbol we need to resolve.
-type ref struct {
+// val is an argument value, it can either be a direct immediate value or
+// a symbol we need to resolve
+type val struct {
 	imm int
 	sym string
 }
 
 // args is the argument set to a single machine instruction.
 type args struct {
-	reg  int
-	addr ref
-	ind  ref
+	reg  int // 1 = a, 2 = x, 3 = y
+	imm  val
+	addr val
+	ind  bool
 }
 
 type Instruction int
@@ -194,13 +196,67 @@ type inst struct {
 
 var prg = []*inst{}
 
+func parseArgs(a string) (ret args) {
+	if strings.Compare(a, "A") == 0 {
+		ret.reg = 1
+	} else if a[0] == '(' {
+		ret.ind = true
+		if strings.HasSuffix(a, ",X)") {
+			ret.reg = 2
+			v, err := strconv.ParseInt(a[:len(a)-3], 0, 16)
+			if err != nil {
+				log.Fatal("Error parsing int", a)
+			}
+			ret.addr.imm = int(v)
+		} else if strings.HasSuffix(a, "),Y") {
+			ret.reg = 3
+			v, err := strconv.ParseInt(a[:len(a)-3], 0, 16)
+			if err != nil {
+				log.Fatal("Error parsing int", a)
+			}
+			ret.addr.imm = int(v)
+		}
+	} else if a[0] == '#' {
+		v, err := strconv.ParseInt(a[1:], 0, 16)
+		if err != nil {
+			log.Fatal("Error parsing int", a)
+		}
+		ret.imm.imm = int(v)
+	} else if strings.HasSuffix(a, ",X") {
+		ret.reg = 2
+		v, err := strconv.ParseInt(a[:len(a)-2], 0, 16)
+		if err != nil {
+			log.Fatal("Error parsing int", a)
+		}
+		ret.addr.imm = int(v)
+	} else if strings.HasSuffix(a, ",Y") {
+		ret.reg = 3
+		v, err := strconv.ParseInt(a[:len(a)-2], 0, 16)
+		if err != nil {
+			log.Fatal("Error parsing int", a)
+		}
+		ret.addr.imm = int(v)
+	} else {
+		v, err := strconv.ParseInt(a, 0, 16)
+		if err != nil {
+			log.Fatal("Error parsing int", a)
+		}
+		ret.addr.imm = int(v)
+	}
+	return
+}
+
 func parseLine(l string) error {
 	parts := strings.Fields(l)
 	i, err := ToInstruction(parts[0])
 	if err != nil {
 		return err
 	}
-	prg = append(prg, &inst{op: i})
+	args := args{}
+	if len(parts) > 1 {
+		args = parseArgs(parts[1])
+	}
+	prg = append(prg, &inst{op: i, args: args})
 	return nil
 }
 
@@ -225,5 +281,6 @@ func main() {
 
 	for _, o := range prg {
 		fmt.Println("Instruction: ", o.op)
+		fmt.Println("  Args: ", o.args)
 	}
 }
