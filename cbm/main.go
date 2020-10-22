@@ -260,6 +260,17 @@ func parseLine(l string) error {
 	return nil
 }
 
+// stripComment removes any text in a comment, and trims any trailing
+// whitespace from a line
+func stripComment(l string) string {
+	semi := strings.Index(l, ";")
+	if semi == -1 {
+		return strings.TrimRight(l, " \t")
+	}
+	ret := strings.TrimRight(l[:semi], " \t")
+	return ret
+}
+
 func main() {
 	file, err := os.Open(os.Args[1])
 	if err != nil {
@@ -269,7 +280,8 @@ func main() {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		err = parseLine(scanner.Text())
+		line := stripComment(scanner.Text())
+		err = parseLine(line)
 		if err != nil {
 			log.Fatal(err)
 		}
