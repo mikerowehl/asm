@@ -175,26 +175,59 @@ const (
 	ZeropageYIndexed
 )
 
-type InstructionForm struct {
-	instruction Instruction
-	modes       []AddressingMode
+type MachineCode struct {
+	mode   AddressingMode
+	opcode uint8
 }
 
-var InstructionForms = []InstructionForm{
-	{
-		instruction: ADC,
-		modes:       []AddressingMode{Immediate, Zeropage},
+var InstructionSet = map[Instruction][]MachineCode{
+	ADC: {
+		{
+			mode:   Immediate,
+			opcode: 0x69,
+		}, {
+			mode:   Zeropage,
+			opcode: 0x65,
+		}, {
+			mode:   ZeropageXIndexed,
+			opcode: 0x75,
+		}, {
+			mode:   Absolute,
+			opcode: 0x6d,
+		}, {
+			mode:   AbsoluteXIndex,
+			opcode: 0x7d,
+		}, {
+			mode:   AbsoluteYIndex,
+			opcode: 0x79,
+		}, {
+			mode:   XIndexedIndirect,
+			opcode: 0x61,
+		}, {
+			mode:   IndirectYIndexed,
+			opcode: 0x71,
+		},
 	},
 }
 
-// inst is an instruction with arguments, addr is the address once we know it
-type inst struct {
+type binaryChunk struct {
 	addr int
-	op   Instruction
-	args args
+	mem  []uint8
 }
 
-var prg = []*inst{}
+var mem binaryChunk
+
+// inst is an instruction with arguments. Chunk holds the machine form of the
+// instruction as we're assembling.
+type inst struct {
+	op    Instruction
+	args  args
+	chunk binaryChunk
+}
+
+type program []*inst
+
+var prg = program{}
 
 func parseArgs(a string) (ret args) {
 	if strings.Compare(a, "A") == 0 {
@@ -271,6 +304,28 @@ func stripComment(l string) string {
 	return ret
 }
 
+// firstPassAssemble walks through each entry in the program and creates the
+// associated binary form. At this point we don't always have all the info we
+// need for references (for instance forward references to labels, we need to
+// figure out the address for the associated chunk). That means we might have
+// to default to longer instruction forms. If we don't know the value of an
+// expression and the instruction has both 8 and 16 bit addresses accepted, we
+// just use the 16 bit version to be safe.
+func firstPassAssemble(p program) error {
+	for _, i := range p {
+		fmt.Println("Instruction: ", i.op)
+		fmt.Println("  Args: ", i.args)
+		forms, ok := InstructionSet[i.op]
+		if !ok {
+			return fmt.Errorf("Invalid instruction: %v", i.op)
+		}
+		for _, f := range forms {
+			fmt.Println("Checking form: ", f)
+		}
+	}
+	return nil
+}
+
 func main() {
 	file, err := os.Open(os.Args[1])
 	if err != nil {
@@ -291,8 +346,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, o := range prg {
-		fmt.Println("Instruction: ", o.op)
-		fmt.Println("  Args: ", o.args)
+	if err := firstPassAssemble(prg); err != nil {
+		log.Fatal(err)
 	}
 }
