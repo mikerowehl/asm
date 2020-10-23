@@ -19,8 +19,8 @@ type val struct {
 // args is the argument set to a single machine instruction.
 type args struct {
 	reg  int // 1 = a, 2 = x, 3 = y
-	imm  val
-	addr val
+	imm  *val
+	addr *val
 	ind  bool
 }
 
@@ -215,6 +215,17 @@ type binaryChunk struct {
 	mem  []uint8
 }
 
+func (c binaryChunk) String() string {
+	if c.mem == nil {
+		return fmt.Sprintf("%x:", c.addr)
+	}
+	b := []string{}
+	for _, m := range c.mem {
+		b = append(b, fmt.Sprintf("0x%x", m))
+	}
+	return fmt.Sprintf("%x: [%s]", c.addr, strings.Join(b, ", "))
+}
+
 var mem binaryChunk
 
 // inst is an instruction with arguments. Chunk holds the machine form of the
@@ -240,41 +251,41 @@ func parseArgs(a string) (ret args) {
 			if err != nil {
 				log.Fatal("Error parsing int", a)
 			}
-			ret.addr.imm = int(v)
+			ret.addr = &val{imm: int(v)}
 		} else if strings.HasSuffix(a, "),Y") {
 			ret.reg = 3
 			v, err := strconv.ParseInt(a[:len(a)-3], 0, 16)
 			if err != nil {
 				log.Fatal("Error parsing int", a)
 			}
-			ret.addr.imm = int(v)
+			ret.addr = &val{imm: int(v)}
 		}
 	} else if a[0] == '#' {
 		v, err := strconv.ParseInt(a[1:], 0, 16)
 		if err != nil {
 			log.Fatal("Error parsing int", a)
 		}
-		ret.imm.imm = int(v)
+		ret.imm = &val{imm: int(v)}
 	} else if strings.HasSuffix(a, ",X") {
 		ret.reg = 2
 		v, err := strconv.ParseInt(a[:len(a)-2], 0, 16)
 		if err != nil {
 			log.Fatal("Error parsing int", a)
 		}
-		ret.addr.imm = int(v)
+		ret.addr = &val{imm: int(v)}
 	} else if strings.HasSuffix(a, ",Y") {
 		ret.reg = 3
 		v, err := strconv.ParseInt(a[:len(a)-2], 0, 16)
 		if err != nil {
 			log.Fatal("Error parsing int", a)
 		}
-		ret.addr.imm = int(v)
+		ret.addr = &val{imm: int(v)}
 	} else {
 		v, err := strconv.ParseInt(a, 0, 16)
 		if err != nil {
 			log.Fatal("Error parsing int", a)
 		}
-		ret.addr.imm = int(v)
+		ret.addr = &val{imm: int(v)}
 	}
 	return
 }
@@ -321,7 +332,23 @@ func firstPassAssemble(p program) error {
 		}
 		for _, f := range forms {
 			fmt.Println("Checking form: ", f)
+			switch f.mode {
+			case Implied:
+				if i.args.imm == nil && i.args.addr == nil {
+					i.chunk.mem = []uint8{f.opcode}
+					break
+				}
+			case Immediate:
+				if i.args.imm != nil {
+					i.chunk.mem = []uint8{f.opcode, uint8(i.args.imm.imm & 0xff)}
+					break
+				}
+			}
 		}
+		if i.chunk.mem == nil {
+			log.Fatalf("Can't find matching instruction for %s", i.op)
+		}
+		fmt.Printf("Assembled form %s\n", i.chunk)
 	}
 	return nil
 }
