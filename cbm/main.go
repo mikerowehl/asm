@@ -315,6 +315,31 @@ func stripComment(l string) string {
 	return ret
 }
 
+func assembleInstruction(i *inst, forms []MachineCode) (err error) {
+	for _, f := range forms {
+		fmt.Println("Checking form: ", f)
+		switch f.mode {
+		case Implied:
+			if i.args.imm == nil && i.args.addr == nil {
+				i.chunk.mem = []uint8{f.opcode}
+				return
+			}
+		case Immediate:
+			if i.args.imm != nil {
+				i.chunk.mem = []uint8{f.opcode, uint8(i.args.imm.imm & 0xff)}
+				return
+			}
+		case Accumulator:
+			if i.args.reg == 1 {
+				i.chunk.mem = []uint8{f.opcode}
+				return
+			}
+		}
+	}
+	err = fmt.Errorf("Can't find matching form for instruction: %s", i.op)
+	return
+}
+
 // firstPassAssemble walks through each entry in the program and creates the
 // associated binary form. At this point we don't always have all the info we
 // need for references (for instance forward references to labels, we need to
@@ -330,20 +355,8 @@ func firstPassAssemble(p program) error {
 		if !ok {
 			return fmt.Errorf("Invalid instruction: %v", i.op)
 		}
-		for _, f := range forms {
-			fmt.Println("Checking form: ", f)
-			switch f.mode {
-			case Implied:
-				if i.args.imm == nil && i.args.addr == nil {
-					i.chunk.mem = []uint8{f.opcode}
-					break
-				}
-			case Immediate:
-				if i.args.imm != nil {
-					i.chunk.mem = []uint8{f.opcode, uint8(i.args.imm.imm & 0xff)}
-					break
-				}
-			}
+		if err := assembleInstruction(i, forms); err != nil {
+			log.Fatal("Error assembling: ", err)
 		}
 		if i.chunk.mem == nil {
 			log.Fatalf("Can't find matching instruction for %s", i.op)
