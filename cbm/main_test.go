@@ -21,3 +21,38 @@ func TestStripComment(t *testing.T) {
 	require.Equal(t, "one two three", stripComment("one two three"))
 	require.Equal(t, "one two", stripComment("one two \t "))
 }
+
+func TestAssembleInstruction(t *testing.T) {
+	tests := []struct {
+		instruction inst
+		forms       []MachineCode
+		expected    []uint8
+	}{
+		{
+			instruction: inst{
+				op:   ADC,
+				args: args{imm: nil, addr: nil},
+			},
+			forms: []MachineCode{
+				{opcode: 0x01, mode: Implied},
+			},
+			expected: []uint8{0x01},
+		},
+		{
+			instruction: inst{
+				op:   LDA,
+				args: args{imm: &val{imm: 0xab}, addr: nil},
+			},
+			forms: []MachineCode{
+				{opcode: 0x02, mode: Immediate},
+			},
+			expected: []uint8{0x02, 0xab},
+		},
+	}
+
+	for i, tc := range tests {
+		err := assembleInstruction(&tc.instruction, tc.forms)
+		require.Nil(t, err)
+		require.Equal(t, tc.expected, tc.instruction.chunk.mem, "Failed test %d", i)
+	}
+}
