@@ -317,7 +317,6 @@ func stripComment(l string) string {
 
 func assembleInstruction(i *inst, forms []MachineCode) (err error) {
 	for _, f := range forms {
-		fmt.Println("Checking form: ", f)
 		switch f.mode {
 		case Implied:
 			if i.args.imm == nil && i.args.addr == nil {
@@ -332,6 +331,15 @@ func assembleInstruction(i *inst, forms []MachineCode) (err error) {
 		case Accumulator:
 			if i.args.reg == 1 {
 				i.chunk.mem = []uint8{f.opcode}
+				return
+			}
+		case Absolute:
+			if i.args.addr != nil && !i.args.ind && i.args.reg == 0 {
+				i.chunk.mem = []uint8{
+					f.opcode,
+					uint8((i.args.addr.imm >> 8) & 0xff),
+					uint8(i.args.addr.imm & 0xff),
+				}
 				return
 			}
 		}
