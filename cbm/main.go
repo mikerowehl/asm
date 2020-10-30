@@ -16,9 +16,18 @@ type val struct {
 	sym string
 }
 
+type Register int
+
+const (
+	RegNone Register = 0
+	RegA             = 1
+	RegX             = 2
+	RegY             = 3
+)
+
 // args is the argument set to a single machine instruction.
 type args struct {
-	reg  int // 1 = a, 2 = x, 3 = y
+	reg  Register
 	imm  *val
 	addr *val
 	ind  bool
@@ -329,12 +338,30 @@ func assembleInstruction(i *inst, forms []MachineCode) (err error) {
 				return
 			}
 		case Accumulator:
-			if i.args.reg == 1 {
+			if i.args.reg == RegA {
 				i.chunk.mem = []uint8{f.opcode}
 				return
 			}
 		case Absolute:
-			if i.args.addr != nil && !i.args.ind && i.args.reg == 0 {
+			if i.args.addr != nil && !i.args.ind && i.args.reg == RegNone {
+				i.chunk.mem = []uint8{
+					f.opcode,
+					uint8((i.args.addr.imm >> 8) & 0xff),
+					uint8(i.args.addr.imm & 0xff),
+				}
+				return
+			}
+		case AbsoluteXIndex:
+			if i.args.addr != nil && !i.args.ind && i.args.reg == RegX {
+				i.chunk.mem = []uint8{
+					f.opcode,
+					uint8((i.args.addr.imm >> 8) & 0xff),
+					uint8(i.args.addr.imm & 0xff),
+				}
+				return
+			}
+		case AbsoluteYIndex:
+			if i.args.addr != nil && !i.args.ind && i.args.reg == RegY {
 				i.chunk.mem = []uint8{
 					f.opcode,
 					uint8((i.args.addr.imm >> 8) & 0xff),

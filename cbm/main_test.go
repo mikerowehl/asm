@@ -87,6 +87,26 @@ func TestAssembleInstruction(t *testing.T) {
 			},
 			expected: []uint8{0x04, 0x12, 0x34},
 		},
+		{
+			instruction: inst{
+				op:   AND,
+				args: args{addr: &val{imm: 0x1234}, reg: RegX},
+			},
+			forms: []MachineCode{
+				{opcode: 0x05, mode: AbsoluteXIndex},
+			},
+			expected: []uint8{0x05, 0x12, 0x34},
+		},
+		{
+			instruction: inst{
+				op:   AND,
+				args: args{addr: &val{imm: 0x1234}, reg: RegY},
+			},
+			forms: []MachineCode{
+				{opcode: 0x06, mode: AbsoluteYIndex},
+			},
+			expected: []uint8{0x06, 0x12, 0x34},
+		},
 	}
 
 	for i, tc := range tests {
