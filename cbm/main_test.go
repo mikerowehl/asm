@@ -15,11 +15,30 @@ func TestInstructionString(t *testing.T) {
 }
 
 func TestStripComment(t *testing.T) {
-	require.Equal(t, "one two", stripComment("one two ; comment four"))
-	require.Equal(t, "one two", stripComment("one two \t ; comment four"))
-	require.Equal(t, "", stripComment("; one two comment four"))
-	require.Equal(t, "one two three", stripComment("one two three"))
-	require.Equal(t, "one two", stripComment("one two \t "))
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    "one two ; comment four",
+			expected: "one two",
+		}, {
+			input:    "one two \t ; comment four",
+			expected: "one two",
+		}, {
+			input:    "; one two",
+			expected: "",
+		}, {
+			input:    "one two three",
+			expected: "one two three",
+		}, {
+			input:    "one two \t ",
+			expected: "one two",
+		},
+	}
+	for _, tc := range tests {
+		require.Equal(t, tc.expected, stripComment(tc.input))
+	}
 }
 
 func TestAssembleInstruction(t *testing.T) {
