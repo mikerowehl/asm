@@ -191,58 +191,24 @@ type MachineCode struct {
 
 var InstructionSet = map[Instruction][]MachineCode{
 	ADC: {
-		{
-			mode:   Immediate,
-			opcode: 0x69,
-		}, {
-			mode:   Zeropage,
-			opcode: 0x65,
-		}, {
-			mode:   ZeropageXIndexed,
-			opcode: 0x75,
-		}, {
-			mode:   Absolute,
-			opcode: 0x6d,
-		}, {
-			mode:   AbsoluteXIndex,
-			opcode: 0x7d,
-		}, {
-			mode:   AbsoluteYIndex,
-			opcode: 0x79,
-		}, {
-			mode:   XIndexedIndirect,
-			opcode: 0x61,
-		}, {
-			mode:   IndirectYIndexed,
-			opcode: 0x71,
-		},
+		{mode: Immediate, opcode: 0x69},
+		{mode: Zeropage, opcode: 0x65},
+		{mode: ZeropageXIndexed, opcode: 0x75},
+		{mode: Absolute, opcode: 0x6d},
+		{mode: AbsoluteXIndex, opcode: 0x7d},
+		{mode: AbsoluteYIndex, opcode: 0x79},
+		{mode: XIndexedIndirect, opcode: 0x61},
+		{mode: IndirectYIndexed, opcode: 0x71},
 	},
 	AND: {
-		{
-			mode:   Immediate,
-			opcode: 0x29,
-		}, {
-			mode:   Zeropage,
-			opcode: 0x25,
-		}, {
-			mode:   ZeropageXIndexed,
-			opcode: 0x35,
-		}, {
-			mode:   Absolute,
-			opcode: 0x2d,
-		}, {
-			mode:   AbsoluteXIndex,
-			opcode: 0x3d,
-		}, {
-			mode:   AbsoluteYIndex,
-			opcode: 0x39,
-		}, {
-			mode:   XIndexedIndirect,
-			opcode: 0x21,
-		}, {
-			mode:   IndirectYIndexed,
-			opcode: 0x31,
-		},
+		{mode: Immediate, opcode: 0x29},
+		{mode: Zeropage, opcode: 0x25},
+		{mode: ZeropageXIndexed, opcode: 0x35},
+		{mode: Absolute, opcode: 0x2d},
+		{mode: AbsoluteXIndex, opcode: 0x3d},
+		{mode: AbsoluteYIndex, opcode: 0x39},
+		{mode: XIndexedIndirect, opcode: 0x21},
+		{mode: IndirectYIndexed, opcode: 0x31},
 	},
 }
 
