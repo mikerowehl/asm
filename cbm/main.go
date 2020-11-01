@@ -369,6 +369,11 @@ func assembleInstruction(i *inst, forms []MachineCode) (err error) {
 				}
 				return
 			}
+		case Zeropage:
+			if i.args.addr != nil && i.args.addr.imm <= 255 && !i.args.ind && i.args.reg == RegNone {
+				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
+				return
+			}
 		}
 	}
 	err = fmt.Errorf("Can't find matching form for instruction: %s", i.op)

@@ -107,6 +107,16 @@ func TestAssembleInstruction(t *testing.T) {
 			},
 			expected: []uint8{0x06, 0x12, 0x34},
 		},
+		{
+			instruction: inst{
+				op:   ADC,
+				args: args{addr: &val{imm: 0x34}},
+			},
+			forms: []MachineCode{
+				{opcode: 0x07, mode: Zeropage},
+			},
+			expected: []uint8{0x07, 0x34},
+		},
 	}
 
 	for i, tc := range tests {
