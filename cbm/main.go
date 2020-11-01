@@ -217,6 +217,33 @@ var InstructionSet = map[Instruction][]MachineCode{
 			opcode: 0x71,
 		},
 	},
+	AND: {
+		{
+			mode:   Immediate,
+			opcode: 0x29,
+		}, {
+			mode:   Zeropage,
+			opcode: 0x25,
+		}, {
+			mode:   ZeropageXIndexed,
+			opcode: 0x35,
+		}, {
+			mode:   Absolute,
+			opcode: 0x2d,
+		}, {
+			mode:   AbsoluteXIndex,
+			opcode: 0x3d,
+		}, {
+			mode:   AbsoluteYIndex,
+			opcode: 0x39,
+		}, {
+			mode:   XIndexedIndirect,
+			opcode: 0x21,
+		}, {
+			mode:   IndirectYIndexed,
+			opcode: 0x31,
+		},
+	},
 }
 
 type binaryChunk struct {
@@ -256,14 +283,14 @@ func parseArgs(a string) (ret args) {
 		ret.ind = true
 		if strings.HasSuffix(a, ",X)") {
 			ret.reg = 2
-			v, err := strconv.ParseInt(a[:len(a)-3], 0, 16)
+			v, err := strconv.ParseInt(a[1:len(a)-3], 0, 16)
 			if err != nil {
 				log.Fatal("Error parsing int", a)
 			}
 			ret.addr = &val{imm: int(v)}
 		} else if strings.HasSuffix(a, "),Y") {
 			ret.reg = 3
-			v, err := strconv.ParseInt(a[:len(a)-3], 0, 16)
+			v, err := strconv.ParseInt(a[1:len(a)-3], 0, 16)
 			if err != nil {
 				log.Fatal("Error parsing int", a)
 			}
