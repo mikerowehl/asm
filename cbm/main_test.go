@@ -117,6 +117,66 @@ func TestAssembleInstruction(t *testing.T) {
 			},
 			expected: []uint8{0x07, 0x34},
 		},
+		{
+			instruction: inst{
+				op:   ADC,
+				args: args{addr: &val{imm: 0x54}, reg: RegX},
+			},
+			forms: []MachineCode{
+				{opcode: 0x08, mode: ZeropageXIndexed},
+			},
+			expected: []uint8{0x08, 0x54},
+		},
+		{
+			instruction: inst{
+				op:   ADC,
+				args: args{addr: &val{imm: 0x56}, reg: RegY},
+			},
+			forms: []MachineCode{
+				{opcode: 0x09, mode: ZeropageYIndexed},
+			},
+			expected: []uint8{0x09, 0x56},
+		},
+		{
+			instruction: inst{
+				op:   ADC,
+				args: args{addr: &val{imm: 0x2345}, ind: true},
+			},
+			forms: []MachineCode{
+				{opcode: 0x0a, mode: Indirect},
+			},
+			expected: []uint8{0x0a, 0x23, 0x45},
+		},
+		{
+			instruction: inst{
+				op:   ADC,
+				args: args{addr: &val{imm: 0x3456}, ind: true, reg: RegX},
+			},
+			forms: []MachineCode{
+				{opcode: 0x0b, mode: XIndexedIndirect},
+			},
+			expected: []uint8{0x0b, 0x34, 0x56},
+		},
+		{
+			instruction: inst{
+				op:   ADC,
+				args: args{addr: &val{imm: 0x4567}, ind: true, reg: RegY},
+			},
+			forms: []MachineCode{
+				{opcode: 0x0c, mode: IndirectYIndexed},
+			},
+			expected: []uint8{0x0c, 0x45, 0x67},
+		},
+		{
+			instruction: inst{
+				op:   JMP,
+				args: args{addr: &val{imm: -2}},
+			},
+			forms: []MachineCode{
+				{opcode: 0x0d, mode: Relative},
+			},
+			expected: []uint8{0x0d, 0xfe},
+		},
 	}
 
 	for i, tc := range tests {

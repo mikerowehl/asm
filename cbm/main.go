@@ -369,8 +369,50 @@ func assembleInstruction(i *inst, forms []MachineCode) (err error) {
 				}
 				return
 			}
+		case Relative:
+			if i.args.addr != nil && i.args.addr.imm >= -128 && i.args.addr.imm <= 127 && !i.args.ind && i.args.reg == RegNone {
+				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
+				return
+			}
+		case Indirect:
+			if i.args.addr != nil && i.args.ind && i.args.reg == RegNone {
+				i.chunk.mem = []uint8{
+					f.opcode,
+					uint8((i.args.addr.imm >> 8) & 0xff),
+					uint8(i.args.addr.imm & 0xff),
+				}
+				return
+			}
+		case XIndexedIndirect:
+			if i.args.addr != nil && i.args.ind && i.args.reg == RegX {
+				i.chunk.mem = []uint8{
+					f.opcode,
+					uint8((i.args.addr.imm >> 8) & 0xff),
+					uint8(i.args.addr.imm & 0xff),
+				}
+				return
+			}
+		case IndirectYIndexed:
+			if i.args.addr != nil && i.args.ind && i.args.reg == RegY {
+				i.chunk.mem = []uint8{
+					f.opcode,
+					uint8((i.args.addr.imm >> 8) & 0xff),
+					uint8(i.args.addr.imm & 0xff),
+				}
+				return
+			}
 		case Zeropage:
 			if i.args.addr != nil && i.args.addr.imm <= 255 && !i.args.ind && i.args.reg == RegNone {
+				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
+				return
+			}
+		case ZeropageXIndexed:
+			if i.args.addr != nil && i.args.addr.imm <= 255 && !i.args.ind && i.args.reg == RegX {
+				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
+				return
+			}
+		case ZeropageYIndexed:
+			if i.args.addr != nil && i.args.addr.imm <= 255 && !i.args.ind && i.args.reg == RegY {
 				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
 				return
 			}
