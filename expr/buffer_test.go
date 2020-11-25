@@ -74,3 +74,40 @@ func TestBufferScanChar(t *testing.T) {
 		require.Equal(t, tc.expected, b.scan(char(tc.check)))
 	}
 }
+
+func TestBufferTakeWhile(t *testing.T) {
+	tests := []struct {
+		input         string
+		compareFn     compare
+		expectedTaken string
+		expectedLeft  string
+	}{
+		{
+			input:         "aaaabcd",
+			compareFn:     char('a'),
+			expectedTaken: "aaaa",
+			expectedLeft:  "bcd",
+		}, {
+			input:         "abcd efgh",
+			compareFn:     letter,
+			expectedTaken: "abcd",
+			expectedLeft:  " efgh",
+		}, {
+			input:         " \t  abcd",
+			compareFn:     whitespace,
+			expectedTaken: " \t  ",
+			expectedLeft:  "abcd",
+		}, {
+			input:         "a][;b cd",
+			compareFn:     word,
+			expectedTaken: "a][;b",
+			expectedLeft:  " cd",
+		},
+	}
+	for _, tc := range tests {
+		b := buffer{s: tc.input}
+		taken, left := b.takeWhile(tc.compareFn)
+		require.Equal(t, tc.expectedTaken, taken.String())
+		require.Equal(t, tc.expectedLeft, left.String())
+	}
+}
