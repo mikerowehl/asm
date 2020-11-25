@@ -48,3 +48,29 @@ func TestBufferStartString(t *testing.T) {
 		require.Equal(t, tc.expected, b.startsWith(str(tc.check)))
 	}
 }
+
+func TestBufferScanChar(t *testing.T) {
+	tests := []struct {
+		input    string
+		check    byte
+		expected int
+	}{
+		{
+			input:    "aaade",
+			check:    'a',
+			expected: 3,
+		}, {
+			input:    "abcde",
+			check:    'a',
+			expected: 1,
+		}, {
+			input:    "abcde",
+			check:    'b',
+			expected: 0,
+		},
+	}
+	for _, tc := range tests {
+		b := buffer{tc.input}
+		require.Equal(t, tc.expected, b.scan(char(tc.check)))
+	}
+}

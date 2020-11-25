@@ -18,20 +18,32 @@ func (b buffer) isEmpty() bool {
 	return len(b.s) == 0
 }
 
-type startCheck func(s string) bool
+type compare func(s string) bool
 
-func (b buffer) startsWith(fn startCheck) bool {
+func (b buffer) startsWith(fn compare) bool {
 	return len(b.s) > 0 && fn(b.s)
 }
 
-func char(in byte) startCheck {
+func char(in byte) compare {
 	return func(s string) bool {
 		return s[0] == in
 	}
 }
 
-func str(in string) startCheck {
+func str(in string) compare {
 	return func(s string) bool {
 		return strings.HasPrefix(s, in)
 	}
+}
+
+func (b buffer) scan(fn compare) (i int) {
+	for i = 0; i < len(b.s) && fn(b.s[i:]); i++ {
+	}
+	return
+}
+
+func (b buffer) scanUntil(fn compare) (i int) {
+	for i = 0; i < len(b.s) && !fn(b.s[i:]); i++ {
+	}
+	return
 }
