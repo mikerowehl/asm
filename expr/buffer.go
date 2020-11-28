@@ -60,6 +60,14 @@ func letter(s string) bool {
 	return (s[0] >= 'a' && s[0] <= 'z') || (s[0] >= 'A' && s[0] <= 'Z')
 }
 
+func digit(s string) bool {
+	return s[0] >= '0' && s[0] <= '9'
+}
+
+func hexDigit(s string) bool {
+	return digit(s) || (s[0] >= 'A' && s[0] <= 'F') || (s[0] >= 'a' && s[0] <= 'f')
+}
+
 func (b buffer) scan(fn compare) (i int) {
 	for i = 0; i < len(b.s) && fn(b.s[i:]); i++ {
 	}
