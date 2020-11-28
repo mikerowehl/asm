@@ -43,7 +43,26 @@ func (p *Parser) parseToken(line buffer) (t Token, remain buffer, err error) {
 }
 
 func (p *Parser) identifyNumber(line buffer) (remain buffer, base int, digitFn compare, negative bool) {
-	return line, 10, digit, false
+	remain = line
+	if remain.startsWith(char('-')) {
+		remain = remain.advance(1)
+		negative = true
+	}
+
+	if remain.startsWith(char('$')) {
+		remain = remain.advance(1)
+		base = 16
+		digitFn = hexDigit
+		return
+	} else if remain.startsWith(str("0x")) {
+		remain = remain.advance(2)
+		base = 16
+		digitFn = hexDigit
+		return
+	}
+	base = 10
+	digitFn = digit
+	return
 }
 
 func (p *Parser) parseNumber(line buffer) (value int, remain buffer, err error) {
