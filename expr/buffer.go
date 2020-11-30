@@ -86,3 +86,10 @@ func (b buffer) takeWhile(fn compare) (taken buffer, left buffer) {
 	left = b.advance(i)
 	return
 }
+
+func (b buffer) takeUntil(fn compare) (taken buffer, left buffer) {
+	i := b.scanUntil(fn)
+	taken = b.trunc(i)
+	left = b.advance(i)
+	return
+}

@@ -1,6 +1,9 @@
 package expr
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type Op int
 
@@ -17,11 +20,11 @@ const (
 )
 
 type Token struct {
-	typ           TokenType
-	value         int
-	stringLiteral string
-	identifier    string
-	op            Op
+	typ         TokenType
+	value       int
+	stringValue string
+	identifier  string
+	op          Op
 }
 
 type Parser struct {
@@ -35,14 +38,20 @@ func (p *Parser) parseToken(line buffer) (t Token, remain buffer, err error) {
 	}
 
 	switch {
-	case line.startsWith(digit) || line.startsWith(char('$')):
+	case line.startsWith(digit) || line.startsWith(char('$')) ||
+		line.startsWith(char('-')):
 		t.value, remain, err = p.parseNumber(line)
 		t.typ = tokenNumber
+	case line.startsWith(char('"')):
+		t.stringValue, remain, err = p.parseString(line)
+		t.typ = tokenString
 	}
+
 	return
 }
 
-func (p *Parser) identifyNumber(line buffer) (remain buffer, base int, digitFn compare, negative bool) {
+func (p *Parser) identifyNumber(line buffer) (remain buffer, base int,
+	digitFn compare, negative bool) {
 	remain = line
 	if remain.startsWith(char('-')) {
 		remain = remain.advance(1)
@@ -65,7 +74,8 @@ func (p *Parser) identifyNumber(line buffer) (remain buffer, base int, digitFn c
 	return
 }
 
-func (p *Parser) parseNumber(line buffer) (value int, remain buffer, err error) {
+func (p *Parser) parseNumber(line buffer) (value int, remain buffer,
+	err error) {
 	line, base, digitFn, negative := p.identifyNumber(line)
 
 	str, remain := line.takeWhile(digitFn)
@@ -79,5 +89,18 @@ func (p *Parser) parseNumber(line buffer) (value int, remain buffer, err error) 
 		value = -value
 	}
 
+	return
+}
+
+func (p *Parser) parseString(line buffer) (value string, remain buffer,
+	err error) {
+	remain = line.advance(1)
+	valueBuf, remain := remain.takeUntil(char('"'))
+	value = valueBuf.s
+	if remain.isEmpty() {
+		err = fmt.Errorf("Unterminated string in: %s", line)
+		return
+	}
+	remain = remain.advance(1)
 	return
 }

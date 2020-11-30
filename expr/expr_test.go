@@ -38,3 +38,37 @@ func TestParseNumber(t *testing.T) {
 		require.Equal(t, tc.expectedErr, e != nil)
 	}
 }
+
+func TestParseString(t *testing.T) {
+	tests := []struct {
+		input          string
+		expectedVal    string
+		expectedRemain string
+		expectedErr    bool
+	}{
+		{
+			input:          "\"abcd\"",
+			expectedVal:    "abcd",
+			expectedRemain: "",
+			expectedErr:    false,
+		}, {
+			input:          "\"0x1234\"",
+			expectedVal:    "0x1234",
+			expectedRemain: "",
+			expectedErr:    false,
+		}, {
+			input:          "\"abc",
+			expectedVal:    "abc",
+			expectedRemain: "",
+			expectedErr:    true,
+		},
+	}
+	for _, tc := range tests {
+		p := Parser{}
+		b := buffer{s: tc.input}
+		v, r, e := p.parseString(b)
+		require.Equal(t, tc.expectedVal, v)
+		require.Equal(t, tc.expectedRemain, r.s)
+		require.Equal(t, tc.expectedErr, e != nil)
+	}
+}
