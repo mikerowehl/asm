@@ -31,6 +31,28 @@ type Parser struct {
 	prevTokenType TokenType
 }
 
+type opEval func(a int, b int) int
+
+type opEntry struct {
+	precedence int
+	sym        string
+	eval       opEval
+}
+
+const (
+	opDivide   Op = 0
+	opMultiply    = 1
+	opAdd         = 2
+	opSub         = 3
+)
+
+var opTable = []opEntry{
+	{2, "/", func(a int, b int) int { return a / b }},
+	{2, "*", func(a int, b int) int { return a * b }},
+	{1, "+", func(a int, b int) int { return a + b }},
+	{1, "-", func(a int, b int) int { return a - b }},
+}
+
 func (p *Parser) parseToken(line buffer) (t Token, remain buffer, err error) {
 	if line.isEmpty() {
 		t.typ = tokenNil
@@ -38,26 +60,34 @@ func (p *Parser) parseToken(line buffer) (t Token, remain buffer, err error) {
 	}
 
 	switch {
-	case line.startsWith(digit) || line.startsWith(char('$')) ||
-		line.startsWith(char('-')):
+	case line.startsWith(digit) || line.startsWith(char('$')):
 		t.value, remain, err = p.parseNumber(line)
 		t.typ = tokenNumber
 	case line.startsWith(char('"')):
 		t.stringValue, remain, err = p.parseString(line)
 		t.typ = tokenString
+	default:
+		for i, o := range opTable {
+			if line.startsWith(str(o.sym)) {
+				t.typ = tokenOp
+				t.op = Op(i)
+				remain = line.advance(len(o.sym))
+				break
+			}
+		}
+		if t.typ != tokenOp {
+			err = fmt.Errorf("Invalid operation: %s", line)
+			return
+		}
 	}
 
+	remain = remain.advance(remain.scan(whitespace))
 	return
 }
 
 func (p *Parser) identifyNumber(line buffer) (remain buffer, base int,
-	digitFn compare, negative bool) {
+	digitFn compare) {
 	remain = line
-	if remain.startsWith(char('-')) {
-		remain = remain.advance(1)
-		negative = true
-	}
-
 	if remain.startsWith(char('$')) {
 		remain = remain.advance(1)
 		base = 16
@@ -76,7 +106,7 @@ func (p *Parser) identifyNumber(line buffer) (remain buffer, base int,
 
 func (p *Parser) parseNumber(line buffer) (value int, remain buffer,
 	err error) {
-	line, base, digitFn, negative := p.identifyNumber(line)
+	line, base, digitFn := p.identifyNumber(line)
 
 	str, remain := line.takeWhile(digitFn)
 	num, err := strconv.ParseInt(str.s, base, 32)
@@ -85,10 +115,6 @@ func (p *Parser) parseNumber(line buffer) (value int, remain buffer,
 	}
 
 	value = int(num)
-	if negative {
-		value = -value
-	}
-
 	return
 }
 
