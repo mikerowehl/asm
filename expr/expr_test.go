@@ -72,3 +72,24 @@ func TestParseString(t *testing.T) {
 		require.Equal(t, tc.expectedErr, e != nil)
 	}
 }
+
+func TestParseToken(t *testing.T) {
+	tests := []struct {
+		input          string
+		expectedToken  Token
+		expectedRemain string
+	}{
+		{
+			input:         "-1234",
+			expectedToken: Token{typ: tokenNumber, value: -1234},
+		},
+	}
+	for _, tc := range tests {
+		p := Parser{}
+		b := buffer{s: tc.input}
+		tok, r, e := p.parseToken(b)
+		require.Nil(t, e)
+		require.Equal(t, tc.expectedToken, tok)
+		require.Equal(t, tc.expectedRemain, r.s)
+	}
+}
