@@ -82,6 +82,14 @@ func TestParseToken(t *testing.T) {
 		{
 			input:         "-1234",
 			expectedToken: Token{typ: tokenNumber, value: -1234},
+		}, {
+			input:          "-1234 and some other stuff",
+			expectedToken:  Token{typ: tokenNumber, value: -1234},
+			expectedRemain: " and some other stuff",
+		}, {
+			input:          "\"string\" and some other stuff",
+			expectedToken:  Token{typ: tokenString, stringValue: "string"},
+			expectedRemain: " and some other stuff",
 		},
 	}
 	for _, tc := range tests {
