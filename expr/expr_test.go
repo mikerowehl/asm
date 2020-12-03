@@ -130,3 +130,27 @@ func TestParse(t *testing.T) {
 		require.Equal(t, tc.expectedRemain, r.s)
 	}
 }
+
+func TestEval(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{
+			input:    "1+2",
+			expected: 3,
+		}, {
+			input:    "3-1",
+			expected: 2,
+		},
+	}
+	for _, tc := range tests {
+		p := Parser{}
+		b := buffer{s: tc.input}
+		n, _, e := p.parse(b)
+		require.Nil(t, e)
+		eval := n.eval(map[string]int{})
+		require.True(t, eval)
+		require.Equal(t, tc.expected, n.value)
+	}
+}

@@ -64,6 +64,21 @@ type node struct {
 	rChild    *node
 }
 
+func (n *node) eval(sym map[string]int) bool {
+	if !n.evaluated {
+		switch {
+		case n.op == opNumber:
+			n.evaluated = true
+		default:
+			n.lChild.eval(sym)
+			n.rChild.eval(sym)
+			n.value = opTable[n.op].eval(n.lChild.value, n.rChild.value)
+			n.evaluated = true
+		}
+	}
+	return n.evaluated
+}
+
 func (p *Parser) parse(line buffer) (n *node, remain buffer, err error) {
 	for err == nil {
 		var token Token
