@@ -28,6 +28,8 @@ type Token struct {
 }
 
 type Parser struct {
+	nodeStack     nodeStack
+	opStack       opStack
 	prevTokenType TokenType
 }
 
@@ -44,6 +46,7 @@ const (
 	opMultiply    = 1
 	opAdd         = 2
 	opSub         = 3
+	opNumber      = 4
 )
 
 var opTable = []opEntry{
@@ -51,6 +54,56 @@ var opTable = []opEntry{
 	{2, "*", func(a int, b int) int { return a * b }},
 	{1, "+", func(a int, b int) int { return a + b }},
 	{1, "-", func(a int, b int) int { return a - b }},
+}
+
+type node struct {
+	op        Op
+	value     int
+	evaluated bool
+	lChild    *node
+	rChild    *node
+}
+
+func (p *Parser) parse(line buffer) (n *node, remain buffer, err error) {
+	for err == nil {
+		var token Token
+		token, remain, err = p.parseToken(line)
+		if err != nil {
+			break
+		}
+
+		if token.typ == tokenNil {
+			break
+		}
+
+		switch token.typ {
+		case tokenNumber:
+			cur := &node{
+				op:        opNumber,
+				value:     token.value,
+				evaluated: true,
+			}
+			p.nodeStack.push(cur)
+
+		case tokenOp:
+			p.opStack.push(token.op)
+		}
+		line = remain
+	}
+
+	for err == nil && !p.opStack.isEmpty() {
+		op, err := p.opStack.pop()
+		if err != nil {
+			return nil, buffer{}, err
+		}
+		err = p.nodeStack.tree(op)
+		if err != nil {
+			return nil, buffer{}, err
+		}
+	}
+
+	n, err = p.nodeStack.pop()
+	return
 }
 
 func (p *Parser) parseToken(line buffer) (t Token, remain buffer, err error) {

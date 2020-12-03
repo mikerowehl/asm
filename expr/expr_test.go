@@ -1,8 +1,10 @@
 package expr
 
 import (
-	"github.com/stretchr/testify/require"
+	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseNumber(t *testing.T) {
@@ -102,6 +104,29 @@ func TestParseToken(t *testing.T) {
 		tok, r, e := p.parseToken(b)
 		require.Nil(t, e)
 		require.Equal(t, tc.expectedToken, tok)
+		require.Equal(t, tc.expectedRemain, r.s)
+	}
+}
+
+func TestParse(t *testing.T) {
+	tests := []struct {
+		input          string
+		expectedNode   node
+		expectedRemain string
+	}{
+		{
+			input:          "1+2",
+			expectedNode:   node{op: opAdd},
+			expectedRemain: "",
+		},
+	}
+	for _, tc := range tests {
+		p := Parser{}
+		b := buffer{s: tc.input}
+		n, r, e := p.parse(b)
+		fmt.Printf("%+v\n", n)
+		require.Nil(t, e)
+		require.Equal(t, tc.expectedNode.op, n.op)
 		require.Equal(t, tc.expectedRemain, r.s)
 	}
 }
