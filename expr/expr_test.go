@@ -94,7 +94,7 @@ func TestParseToken(t *testing.T) {
 			expectedRemain: "and some other stuff",
 		}, {
 			input:          "- and some other stuff",
-			expectedToken:  Token{typ: tokenOp, op: opSub},
+			expectedToken:  Token{typ: tokenOp, op: opUnaryNeg},
 			expectedRemain: "and some other stuff",
 		},
 	}
