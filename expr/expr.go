@@ -136,6 +136,19 @@ type node struct {
 	rChild    *node
 }
 
+func (n *node) String() string {
+	switch {
+	case n.op == opNumber:
+		return fmt.Sprintf("%d", n.value)
+	case n.op.isBinary():
+		return fmt.Sprintf("%s %s %s", n.lChild.String(), n.rChild.String(), n.op.sym())
+	case n.op.isUnary():
+		return fmt.Sprintf("%s %s", n.lChild.String(), n.op.sym())
+	default:
+		return "unknown"
+	}
+}
+
 func (n *node) eval(sym map[string]int) bool {
 	if !n.evaluated {
 		switch {
@@ -178,7 +191,39 @@ func (p *Parser) parse(line buffer) (n *node, remain buffer, err error) {
 			p.nodeStack.push(cur)
 
 		case tokenOp:
+			for err == nil && !p.opStack.isEmpty() && token.op.canTree(p.opStack.peek()) {
+				var treeOp Op
+				treeOp, err = p.opStack.pop()
+				if err != nil {
+					return
+				}
+				err = p.nodeStack.tree(treeOp)
+				if err != nil {
+					return
+				}
+			}
 			p.opStack.push(token.op)
+		case tokenLeftParen:
+			p.opStack.push(opLeftParen)
+		case tokenRightParen:
+			for err == nil {
+				if p.opStack.isEmpty() {
+					err = fmt.Errorf("Mismatched parens")
+					return
+				}
+				var treeOp Op
+				treeOp, err = p.opStack.pop()
+				if err != nil {
+					return
+				}
+				if treeOp == opLeftParen {
+					break
+				}
+				err = p.nodeStack.tree(treeOp)
+				if err != nil {
+					return
+				}
+			}
 		}
 		line = remain
 	}
@@ -211,6 +256,14 @@ func (p *Parser) parseToken(line buffer) (t Token, remain buffer, err error) {
 	case line.startsWith(char('"')):
 		t.stringValue, remain, err = p.parseString(line)
 		t.typ = tokenString
+	case line.startsWith(char('(')):
+		t.typ = tokenLeftParen
+		t.op = opLeftParen
+		remain = line.advance(1)
+	case line.startsWith(char(')')):
+		t.typ = tokenRightParen
+		t.op = opRightParen
+		remain = line.advance(1)
 	default:
 		for i, o := range opTable {
 			if o.parseable() && line.startsWith(str(o.sym)) {

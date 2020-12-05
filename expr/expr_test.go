@@ -1,7 +1,6 @@
 package expr
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -124,7 +123,6 @@ func TestParse(t *testing.T) {
 		p := Parser{}
 		b := buffer{s: tc.input}
 		n, r, e := p.parse(b)
-		fmt.Printf("%+v\n", n)
 		require.Nil(t, e)
 		require.Equal(t, tc.expectedNode.op, n.op)
 		require.Equal(t, tc.expectedRemain, r.s)
@@ -148,6 +146,9 @@ func TestEval(t *testing.T) {
 		}, {
 			input:    "-4",
 			expected: -4,
+		}, {
+			input:    "4-(2-1)",
+			expected: 3,
 		},
 	}
 	for _, tc := range tests {
