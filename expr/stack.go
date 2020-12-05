@@ -34,23 +34,48 @@ func (s *nodeStack) peek() (n *node) {
 }
 
 func (s *nodeStack) tree(op Op) (err error) {
-	if len(s.data) < 2 {
-		err = fmt.Errorf("Attempt to tree with too few nodes: %v", s)
-	}
-	rc, err := s.pop()
-	if err != nil {
+	switch {
+	case !op.isTreeable():
+		err = fmt.Errorf("Can't tree operator %v", op)
+		return
+	case op.isBinary():
+		if len(s.data) < 2 {
+			err = fmt.Errorf("Attempt to tree with too few nodes: %v", s)
+			return
+		}
+		var rc, lc *node
+		rc, err = s.pop()
+		if err != nil {
+			return
+		}
+		lc, err = s.pop()
+		if err != nil {
+			return
+		}
+		n := &node{
+			op:     op,
+			rChild: rc,
+			lChild: lc,
+		}
+		s.push(n)
+		return
+	case op.isUnary():
+		if len(s.data) < 1 {
+			err = fmt.Errorf("Attempt to tree with zero nodes: %v", s)
+		}
+		var lc *node
+		lc, err = s.pop()
+		if err != nil {
+			return
+		}
+		n := &node{
+			op:     op,
+			lChild: lc,
+		}
+		s.push(n)
 		return
 	}
-	lc, err := s.pop()
-	if err != nil {
-		return
-	}
-	n := &node{
-		op:     op,
-		rChild: rc,
-		lChild: lc,
-	}
-	s.push(n)
+	err = fmt.Errorf("Error trying to create tree for op %v", op)
 	return
 }
 

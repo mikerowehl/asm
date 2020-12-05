@@ -141,10 +141,14 @@ func (n *node) eval(sym map[string]int) bool {
 		switch {
 		case n.op == opNumber:
 			n.evaluated = true
-		default:
+		case n.op.isBinary():
 			n.lChild.eval(sym)
 			n.rChild.eval(sym)
 			n.value = opTable[n.op].eval(n.lChild.value, n.rChild.value)
+			n.evaluated = true
+		case n.op.isUnary():
+			n.lChild.eval(sym)
+			n.value = opTable[n.op].eval(n.lChild.value, 0)
 			n.evaluated = true
 		}
 	}
