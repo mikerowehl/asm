@@ -1,4 +1,4 @@
-package expr
+package buf
 
 import (
 	"github.com/stretchr/testify/require"
@@ -22,8 +22,8 @@ func TestBufferStartChar(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		b := buffer{tc.input}
-		require.Equal(t, tc.expected, b.startsWith(char(tc.check)))
+		b := Buffer{tc.input}
+		require.Equal(t, tc.expected, b.StartsWith(Char(tc.check)))
 	}
 }
 
@@ -44,8 +44,8 @@ func TestBufferStartString(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		b := buffer{tc.input}
-		require.Equal(t, tc.expected, b.startsWith(str(tc.check)))
+		b := Buffer{tc.input}
+		require.Equal(t, tc.expected, b.StartsWith(Str(tc.check)))
 	}
 }
 
@@ -70,43 +70,43 @@ func TestBufferScanChar(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		b := buffer{tc.input}
-		require.Equal(t, tc.expected, b.scan(char(tc.check)))
+		b := Buffer{tc.input}
+		require.Equal(t, tc.expected, b.Scan(Char(tc.check)))
 	}
 }
 
 func TestBufferTakeWhile(t *testing.T) {
 	tests := []struct {
 		input         string
-		compareFn     compare
+		compareFn     Compare
 		expectedTaken string
 		expectedLeft  string
 	}{
 		{
 			input:         "aaaabcd",
-			compareFn:     char('a'),
+			compareFn:     Char('a'),
 			expectedTaken: "aaaa",
 			expectedLeft:  "bcd",
 		}, {
 			input:         "abcd efgh",
-			compareFn:     letter,
+			compareFn:     Letter,
 			expectedTaken: "abcd",
 			expectedLeft:  " efgh",
 		}, {
 			input:         " \t  abcd",
-			compareFn:     whitespace,
+			compareFn:     Whitespace,
 			expectedTaken: " \t  ",
 			expectedLeft:  "abcd",
 		}, {
 			input:         "a][;b cd",
-			compareFn:     word,
+			compareFn:     Word,
 			expectedTaken: "a][;b",
 			expectedLeft:  " cd",
 		},
 	}
 	for _, tc := range tests {
-		b := buffer{s: tc.input}
-		taken, left := b.takeWhile(tc.compareFn)
+		b := Buffer{s: tc.input}
+		taken, left := b.TakeWhile(tc.compareFn)
 		require.Equal(t, tc.expectedTaken, taken.String())
 		require.Equal(t, tc.expectedLeft, left.String())
 	}

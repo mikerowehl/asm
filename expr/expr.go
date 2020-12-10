@@ -2,6 +2,7 @@ package expr
 
 import (
 	"fmt"
+	"github.com/mikerowehl/asm/buf"
 	"strconv"
 )
 
@@ -168,7 +169,7 @@ func (n *node) eval(sym map[string]int) bool {
 	return n.evaluated
 }
 
-func (p *Parser) parse(line buffer) (n *node, remain buffer, err error) {
+func (p *Parser) parse(line buf.Buffer) (n *node, remain buf.Buffer, err error) {
 	p.prevTokenType = tokenNil
 	for err == nil {
 		var token Token
@@ -231,11 +232,11 @@ func (p *Parser) parse(line buffer) (n *node, remain buffer, err error) {
 	for err == nil && !p.opStack.isEmpty() {
 		op, err := p.opStack.pop()
 		if err != nil {
-			return nil, buffer{}, err
+			return nil, buf.Buffer{}, err
 		}
 		err = p.nodeStack.tree(op)
 		if err != nil {
-			return nil, buffer{}, err
+			return nil, buf.Buffer{}, err
 		}
 	}
 
@@ -243,34 +244,34 @@ func (p *Parser) parse(line buffer) (n *node, remain buffer, err error) {
 	return
 }
 
-func (p *Parser) parseToken(line buffer) (t Token, remain buffer, err error) {
-	if line.isEmpty() {
+func (p *Parser) parseToken(line buf.Buffer) (t Token, remain buf.Buffer, err error) {
+	if line.IsEmpty() {
 		t.typ = tokenNil
 		return
 	}
 
 	switch {
-	case line.startsWith(digit) || line.startsWith(char('$')):
+	case line.StartsWith(buf.Digit) || line.StartsWith(buf.Char('$')):
 		t.value, remain, err = p.parseNumber(line)
 		t.typ = tokenNumber
-	case line.startsWith(char('"')):
+	case line.StartsWith(buf.Char('"')):
 		t.stringValue, remain, err = p.parseString(line)
 		t.typ = tokenString
-	case line.startsWith(char('(')):
+	case line.StartsWith(buf.Char('(')):
 		t.typ = tokenLeftParen
 		t.op = opLeftParen
-		remain = line.advance(1)
-	case line.startsWith(char(')')):
+		remain = line.Advance(1)
+	case line.StartsWith(buf.Char(')')):
 		t.typ = tokenRightParen
 		t.op = opRightParen
-		remain = line.advance(1)
+		remain = line.Advance(1)
 	default:
 		for i, o := range opTable {
-			if o.parseable() && line.startsWith(str(o.sym)) {
+			if o.parseable() && line.StartsWith(buf.Str(o.sym)) {
 				if o.isBinary() || (o.isUnary() && p.prevTokenType.canPrecedeUnary()) {
 					t.typ = tokenOp
 					t.op = Op(i)
-					remain = line.advance(len(o.sym))
+					remain = line.Advance(len(o.sym))
 					break
 				}
 			}
@@ -282,35 +283,35 @@ func (p *Parser) parseToken(line buffer) (t Token, remain buffer, err error) {
 	}
 
 	p.prevTokenType = t.typ
-	remain = remain.advance(remain.scan(whitespace))
+	remain = remain.Advance(remain.Scan(buf.Whitespace))
 	return
 }
 
-func (p *Parser) identifyNumber(line buffer) (remain buffer, base int,
-	digitFn compare) {
+func (p *Parser) identifyNumber(line buf.Buffer) (remain buf.Buffer, base int,
+	digitFn buf.Compare) {
 	remain = line
-	if remain.startsWith(char('$')) {
-		remain = remain.advance(1)
+	if remain.StartsWith(buf.Char('$')) {
+		remain = remain.Advance(1)
 		base = 16
-		digitFn = hexDigit
+		digitFn = buf.HexDigit
 		return
-	} else if remain.startsWith(str("0x")) {
-		remain = remain.advance(2)
+	} else if remain.StartsWith(buf.Str("0x")) {
+		remain = remain.Advance(2)
 		base = 16
-		digitFn = hexDigit
+		digitFn = buf.HexDigit
 		return
 	}
 	base = 10
-	digitFn = digit
+	digitFn = buf.Digit
 	return
 }
 
-func (p *Parser) parseNumber(line buffer) (value int, remain buffer,
+func (p *Parser) parseNumber(line buf.Buffer) (value int, remain buf.Buffer,
 	err error) {
 	line, base, digitFn := p.identifyNumber(line)
 
-	str, remain := line.takeWhile(digitFn)
-	num, err := strconv.ParseInt(str.s, base, 32)
+	str, remain := line.TakeWhile(digitFn)
+	num, err := strconv.ParseInt(str.String(), base, 32)
 	if err != nil {
 		return
 	}
@@ -319,15 +320,15 @@ func (p *Parser) parseNumber(line buffer) (value int, remain buffer,
 	return
 }
 
-func (p *Parser) parseString(line buffer) (value string, remain buffer,
+func (p *Parser) parseString(line buf.Buffer) (value string, remain buf.Buffer,
 	err error) {
-	remain = line.advance(1)
-	valueBuf, remain := remain.takeUntil(char('"'))
-	value = valueBuf.s
-	if remain.isEmpty() {
+	remain = line.Advance(1)
+	valueBuf, remain := remain.TakeUntil(buf.Char('"'))
+	value = valueBuf.String()
+	if remain.IsEmpty() {
 		err = fmt.Errorf("Unterminated string in: %s", line)
 		return
 	}
-	remain = remain.advance(1)
+	remain = remain.Advance(1)
 	return
 }

@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"github.com/mikerowehl/asm/buf"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -32,10 +33,10 @@ func TestParseNumber(t *testing.T) {
 	}
 	for _, tc := range tests {
 		p := Parser{}
-		b := buffer{s: tc.input}
+		b := buf.NewBuffer(tc.input)
 		v, r, e := p.parseNumber(b)
 		require.Equal(t, tc.expectedVal, v)
-		require.Equal(t, tc.expectedRemain, r.s)
+		require.Equal(t, tc.expectedRemain, r.String())
 		require.Equal(t, tc.expectedErr, e != nil)
 	}
 }
@@ -66,10 +67,10 @@ func TestParseString(t *testing.T) {
 	}
 	for _, tc := range tests {
 		p := Parser{}
-		b := buffer{s: tc.input}
+		b := buf.NewBuffer(tc.input)
 		v, r, e := p.parseString(b)
 		require.Equal(t, tc.expectedVal, v)
-		require.Equal(t, tc.expectedRemain, r.s)
+		require.Equal(t, tc.expectedRemain, r.String())
 		require.Equal(t, tc.expectedErr, e != nil)
 	}
 }
@@ -99,11 +100,11 @@ func TestParseToken(t *testing.T) {
 	}
 	for _, tc := range tests {
 		p := Parser{}
-		b := buffer{s: tc.input}
+		b := buf.NewBuffer(tc.input)
 		tok, r, e := p.parseToken(b)
 		require.Nil(t, e)
 		require.Equal(t, tc.expectedToken, tok)
-		require.Equal(t, tc.expectedRemain, r.s)
+		require.Equal(t, tc.expectedRemain, r.String())
 	}
 }
 
@@ -121,11 +122,11 @@ func TestParse(t *testing.T) {
 	}
 	for _, tc := range tests {
 		p := Parser{}
-		b := buffer{s: tc.input}
+		b := buf.NewBuffer(tc.input)
 		n, r, e := p.parse(b)
 		require.Nil(t, e)
 		require.Equal(t, tc.expectedNode.op, n.op)
-		require.Equal(t, tc.expectedRemain, r.s)
+		require.Equal(t, tc.expectedRemain, r.String())
 	}
 }
 
@@ -153,7 +154,7 @@ func TestEval(t *testing.T) {
 	}
 	for _, tc := range tests {
 		p := Parser{}
-		b := buffer{s: tc.input}
+		b := buf.NewBuffer(tc.input)
 		n, _, e := p.parse(b)
 		require.Nil(t, e)
 		eval := n.eval(map[string]int{})
