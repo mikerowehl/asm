@@ -3,10 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/mikerowehl/asm/buf"
 )
 
 // val is an argument value, it can either be a direct immediate value or
@@ -292,29 +295,23 @@ func parseArgs(a string) (ret args) {
 	return
 }
 
-func parseLine(l string) error {
-	parts := strings.Fields(l)
-	i, err := ToInstruction(parts[0])
-	if err != nil {
-		return err
+func parseLine(line buf.Buffer) error {
+	remain := line
+	if !remain.StartsWith(buf.Whitespace) {
+		remain = parseLabel(remain)
 	}
-	args := args{}
-	if len(parts) > 1 {
-		args = parseArgs(parts[1])
-	}
-	prg = append(prg, &inst{op: i, args: args})
-	return nil
+	return parseOperation(remain)
 }
 
-// stripComment removes any text in a comment, and trims any trailing
-// whitespace from a line
-func stripComment(l string) string {
-	semi := strings.Index(l, ";")
-	if semi == -1 {
-		return strings.TrimRight(l, " \t")
-	}
-	ret := strings.TrimRight(l[:semi], " \t")
-	return ret
+func parseLabel(line buf.Buffer) buf.Buffer {
+	label, remain := line.TakeUntil(buf.Char(':'))
+	// TODO: add label to context
+	fmt.Printf("Label %s\n", label.String())
+	return remain
+}
+
+func parseOperation(line buf.Buffer) error {
+	return nil
 }
 
 func assembleInstruction(i *inst, forms []MachineCode) (err error) {
@@ -441,23 +438,29 @@ func firstPassAssemble(p program) error {
 	return nil
 }
 
-func main() {
+func parseFile(fn string) (err error) {
 	file, err := os.Open(os.Args[1])
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 	defer file.Close()
+	return parseReader(file)
+}
 
-	scanner := bufio.NewScanner(file)
+func parseReader(r io.Reader) (err error) {
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		line := stripComment(scanner.Text())
-		err = parseLine(line)
+		err = parseLine(buf.NewBuffer(scanner.Text()))
 		if err != nil {
-			log.Fatal(err)
+			return
 		}
 	}
+	return nil
+}
 
-	if err := scanner.Err(); err != nil {
+func main() {
+	err := parseFile(os.Args[1])
+	if err != nil {
 		log.Fatal(err)
 	}
 
