@@ -245,6 +245,12 @@ type program []*inst
 
 var prg = program{}
 
+type assembler struct {
+	labels []string
+	prg    program
+	sym    map[string]int
+}
+
 func parseArgs(a string) (ret args) {
 	if strings.Compare(a, "A") == 0 {
 		ret.reg = 1
@@ -295,23 +301,32 @@ func parseArgs(a string) (ret args) {
 	return
 }
 
-func parseLine(line buf.Buffer) error {
+func (a *assembler) parseLine(line buf.Buffer) error {
 	remain := line
 	if !remain.StartsWith(buf.Whitespace) {
-		remain = parseLabel(remain)
+		remain = a.parseLabel(remain)
 	}
-	return parseOperation(remain)
+	return a.parseOperation(remain)
 }
 
-func parseLabel(line buf.Buffer) buf.Buffer {
+func (a *assembler) parseLabel(line buf.Buffer) buf.Buffer {
 	label, remain := line.TakeUntil(buf.Char(':'))
-	// TODO: add label to context
-	fmt.Printf("Label %s\n", label.String())
+	a.labels = append(a.labels, label.String())
 	return remain
 }
 
-func parseOperation(line buf.Buffer) error {
-	return nil
+func (a *assembler) parseOperation(line buf.Buffer) error {
+	_, remain := line.TakeWhile(buf.Whitespace)
+	if remain.IsEmpty() || remain.StartsWith(buf.Char(';')) {
+		return nil
+	}
+
+	op, remain := line.TakeWhile(buf.Word)
+	pseudo, found := pseudoOps[op.String()]; found {
+		// TODO pseudo ops
+		return nil
+	}
+	return a.parseOpcode(op, remain)
 }
 
 func assembleInstruction(i *inst, forms []MachineCode) (err error) {
@@ -438,19 +453,19 @@ func firstPassAssemble(p program) error {
 	return nil
 }
 
-func parseFile(fn string) (err error) {
+func (a *assembler) parseFile(fn string) (err error) {
 	file, err := os.Open(os.Args[1])
 	if err != nil {
 		return
 	}
 	defer file.Close()
-	return parseReader(file)
+	return a.parseReader(file)
 }
 
-func parseReader(r io.Reader) (err error) {
+func (a *assembler) parseReader(r io.Reader) (err error) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		err = parseLine(buf.NewBuffer(scanner.Text()))
+		err = a.parseLine(buf.NewBuffer(scanner.Text()))
 		if err != nil {
 			return
 		}
@@ -459,7 +474,8 @@ func parseReader(r io.Reader) (err error) {
 }
 
 func main() {
-	err := parseFile(os.Args[1])
+	a := assembler{}
+	err := a.parseFile(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
