@@ -129,15 +129,15 @@ func (op Op) canTree(other Op) bool {
 	return opTable[op].precedence < opTable[other].precedence
 }
 
-type node struct {
+type Node struct {
 	op        Op
 	value     int
 	evaluated bool
-	lChild    *node
-	rChild    *node
+	lChild    *Node
+	rChild    *Node
 }
 
-func (n *node) String() string {
+func (n *Node) String() string {
 	switch {
 	case n.op == opNumber:
 		return fmt.Sprintf("%d", n.value)
@@ -150,18 +150,18 @@ func (n *node) String() string {
 	}
 }
 
-func (n *node) eval(sym map[string]int) bool {
+func (n *Node) Eval(sym map[string]int) bool {
 	if !n.evaluated {
 		switch {
 		case n.op == opNumber:
 			n.evaluated = true
 		case n.op.isBinary():
-			n.lChild.eval(sym)
-			n.rChild.eval(sym)
+			n.lChild.Eval(sym)
+			n.rChild.Eval(sym)
 			n.value = opTable[n.op].eval(n.lChild.value, n.rChild.value)
 			n.evaluated = true
 		case n.op.isUnary():
-			n.lChild.eval(sym)
+			n.lChild.Eval(sym)
 			n.value = opTable[n.op].eval(n.lChild.value, 0)
 			n.evaluated = true
 		}
@@ -169,7 +169,7 @@ func (n *node) eval(sym map[string]int) bool {
 	return n.evaluated
 }
 
-func (p *Parser) parse(line buf.Buffer) (n *node, remain buf.Buffer, err error) {
+func (p *Parser) Parse(line buf.Buffer) (n *Node, remain buf.Buffer, err error) {
 	p.prevTokenType = tokenNil
 	for err == nil {
 		var token Token
@@ -184,7 +184,7 @@ func (p *Parser) parse(line buf.Buffer) (n *node, remain buf.Buffer, err error) 
 
 		switch token.typ {
 		case tokenNumber:
-			cur := &node{
+			cur := &Node{
 				op:        opNumber,
 				value:     token.value,
 				evaluated: true,

@@ -3,18 +3,18 @@ package expr
 import "fmt"
 
 type nodeStack struct {
-	data []*node
+	data []*Node
 }
 
 func (s *nodeStack) isEmpty() bool {
 	return len(s.data) == 0
 }
 
-func (s *nodeStack) push(n *node) {
+func (s *nodeStack) push(n *Node) {
 	s.data = append(s.data, n)
 }
 
-func (s *nodeStack) pop() (n *node, err error) {
+func (s *nodeStack) pop() (n *Node, err error) {
 	l := len(s.data)
 	if l == 0 {
 		err = fmt.Errorf("Attempt to pop from empty stack: %v", s)
@@ -25,7 +25,7 @@ func (s *nodeStack) pop() (n *node, err error) {
 	return
 }
 
-func (s *nodeStack) peek() (n *node) {
+func (s *nodeStack) peek() (n *Node) {
 	l := len(s.data)
 	if l == 0 {
 		return nil
@@ -43,7 +43,7 @@ func (s *nodeStack) tree(op Op) (err error) {
 			err = fmt.Errorf("Attempt to tree with too few nodes: %v", s)
 			return
 		}
-		var rc, lc *node
+		var rc, lc *Node
 		rc, err = s.pop()
 		if err != nil {
 			return
@@ -52,7 +52,7 @@ func (s *nodeStack) tree(op Op) (err error) {
 		if err != nil {
 			return
 		}
-		n := &node{
+		n := &Node{
 			op:     op,
 			rChild: rc,
 			lChild: lc,
@@ -63,12 +63,12 @@ func (s *nodeStack) tree(op Op) (err error) {
 		if len(s.data) < 1 {
 			err = fmt.Errorf("Attempt to tree with zero nodes: %v", s)
 		}
-		var lc *node
+		var lc *Node
 		lc, err = s.pop()
 		if err != nil {
 			return
 		}
-		n := &node{
+		n := &Node{
 			op:     op,
 			lChild: lc,
 		}

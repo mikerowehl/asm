@@ -111,19 +111,19 @@ func TestParseToken(t *testing.T) {
 func TestParse(t *testing.T) {
 	tests := []struct {
 		input          string
-		expectedNode   node
+		expectedNode   Node
 		expectedRemain string
 	}{
 		{
 			input:          "1+2",
-			expectedNode:   node{op: opAdd},
+			expectedNode:   Node{op: opAdd},
 			expectedRemain: "",
 		},
 	}
 	for _, tc := range tests {
 		p := Parser{}
 		b := buf.NewBuffer(tc.input)
-		n, r, e := p.parse(b)
+		n, r, e := p.Parse(b)
 		require.Nil(t, e)
 		require.Equal(t, tc.expectedNode.op, n.op)
 		require.Equal(t, tc.expectedRemain, r.String())
@@ -155,9 +155,9 @@ func TestEval(t *testing.T) {
 	for _, tc := range tests {
 		p := Parser{}
 		b := buf.NewBuffer(tc.input)
-		n, _, e := p.parse(b)
+		n, _, e := p.Parse(b)
 		require.Nil(t, e)
-		eval := n.eval(map[string]int{})
+		eval := n.Eval(map[string]int{})
 		require.True(t, eval)
 		require.Equal(t, tc.expected, n.value)
 	}
