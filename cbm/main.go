@@ -187,12 +187,12 @@ const (
 	ZeropageYIndexed
 )
 
-type MachineCode struct {
+type OpcodeForm struct {
 	mode   AddressingMode
 	opcode uint8
 }
 
-var InstructionSet = map[Instruction][]MachineCode{
+var InstructionSet = map[Instruction][]OpcodeForm{
 	ADC: {
 		{mode: Immediate, opcode: 0x69},
 		{mode: Zeropage, opcode: 0x65},
@@ -232,6 +232,13 @@ func (c binaryChunk) String() string {
 }
 
 var mem binaryChunk
+
+type Operands struct {
+	mode AddressingMode
+	e    *expr.Node
+	imm  bool
+	abs  bool
+}
 
 // inst is an instruction with arguments. Chunk holds the machine form of the
 // instruction as we're assembling.
@@ -322,14 +329,23 @@ func (a *assembler) parseOperation(line buf.Buffer) error {
 	}
 
 	op, remain := line.TakeWhile(buf.Word)
-	pseudo, found := pseudoOps[op.String()]; found {
-		// TODO pseudo ops
-		return nil
-	}
-	return a.parseOpcode(op, remain)
+	/*
+		if pseudo, found := pseudoOps[op.String()]; found {
+			return nil
+		}
+	*/
+	return a.parseOpcode(op.String(), remain)
 }
 
-func assembleInstruction(i *inst, forms []MachineCode) (err error) {
+func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
+	i, err := ToInstruction(opcode)
+	if err != nil {
+		return err
+	}
+	operands, remain, err := a.parseOperand(line)
+}
+
+func assembleInstruction(i *inst, forms []OpcodeForm) (err error) {
 	for _, f := range forms {
 		switch f.mode {
 		case Implied:
