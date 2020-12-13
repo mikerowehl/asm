@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mikerowehl/asm/buf"
+	"github.com/mikerowehl/asm/expr"
 )
 
 // val is an argument value, it can either be a direct immediate value or
@@ -243,9 +244,10 @@ type Operands struct {
 // inst is an instruction with arguments. Chunk holds the machine form of the
 // instruction as we're assembling.
 type inst struct {
-	op    Instruction
-	args  args
-	chunk binaryChunk
+	op       Instruction
+	operands Operands
+	args     args
+	chunk    binaryChunk
 }
 
 type program []*inst
@@ -253,9 +255,10 @@ type program []*inst
 var prg = program{}
 
 type assembler struct {
-	labels []string
-	prg    program
-	sym    map[string]int
+	labels     []string
+	prg        program
+	sym        map[string]int
+	exprParser expr.Parser
 }
 
 func parseArgs(a string) (ret args) {
@@ -342,7 +345,62 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 	if err != nil {
 		return err
 	}
-	operands, remain, err := a.parseOperand(line)
+	operands, remain, err := a.parseOperands(line)
+	if err != nil {
+		return err
+	}
+	remain = remain.Advance(remain.Scan(buf.Whitespace))
+	if !remain.IsEmpty() || remain.StartsWith(buf.Char(';')) {
+		return fmt.Errorf("Unexpected text %v", remain.String())
+	}
+	instruction := inst{
+		op:       i,
+		operands: operands,
+	}
+	fmt.Printf("instruction %+v", instruction)
+	return nil
+}
+
+func (a *assembler) parseOperands(line buf.Buffer) (oper Operands, remain buf.Buffer, err error) {
+	remain = line.Advance(line.Scan(buf.Whitespace))
+	if remain.IsEmpty() {
+		oper.mode = Immediate
+		return
+	}
+	if remain.StartsWith(buf.Char('(')) {
+		var e buf.Buffer
+		oper.mode, e, remain, err = a.parseIndirect(remain)
+		if err != nil {
+			return
+		}
+		oper.expr, _, err = a.exprParser.Parse(e)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (a *assembler) parseIndirect(line buf.Buffer) (mode AddressingMode, expr buf.Buffer, remain buf.Buffer, err error) {
+	expr, remain = line.TakeUntil(func(s string) bool { return s[0] == ',' || s[0] == ')' })
+
+	if remain.StartsWith(buf.Str(",X)")) {
+		mode = XIndexedIndirect
+		remain = remain.Advance(3)
+		return
+	}
+	if remain.StartsWith(buf.Str("),Y")) {
+		mode = IndirectYIndexed
+		remain = remain.Advance(3)
+		return
+	}
+	if remain.StartsWith(buf.Char(')')) {
+		mode = Indirect
+		remain = remain.Advance(1)
+		return
+	}
+	err = fmt.Errorf("Incorrect indirect format: %s", line.String())
+	return
 }
 
 func assembleInstruction(i *inst, forms []OpcodeForm) (err error) {
