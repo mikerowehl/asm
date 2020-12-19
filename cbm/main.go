@@ -363,20 +363,27 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 
 func (a *assembler) parseOperands(line buf.Buffer) (oper Operands, remain buf.Buffer, err error) {
 	remain = line.Advance(line.Scan(buf.Whitespace))
-	if remain.IsEmpty() {
+	switch {
+	case remain.IsEmpty():
 		oper.mode = Immediate
-		return
-	}
-	if remain.StartsWith(buf.Char('(')) {
+	case remain.StartsWith(buf.Char('(')):
 		var e buf.Buffer
 		oper.mode, e, remain, err = a.parseIndirect(remain)
 		if err != nil {
 			return
 		}
-		oper.expr, _, err = a.exprParser.Parse(e)
+		oper.e, _, err = a.exprParser.Parse(e)
+	case remain.StartsWith(buf.Char('#')):
+		oper.mode = Immediate
+		oper.imm = true
+		oper.e, _, err = a.exprParser.Parse(remain.Advance(1))
+	default:
+		var e buf.Buffer
+		oper.mode, e, remain, err = a.parseAbsolute(remain)
 		if err != nil {
 			return
 		}
+		oper.e, _, err = a.exprParser.Parse(e)
 	}
 	return
 }
@@ -400,6 +407,24 @@ func (a *assembler) parseIndirect(line buf.Buffer) (mode AddressingMode, expr bu
 		return
 	}
 	err = fmt.Errorf("Incorrect indirect format: %s", line.String())
+	return
+}
+
+func (a *assembler) parseAbsolute(line buf.Buffer) (mode AddressingMode, expr buf.Buffer, remain buf.Buffer, err error) {
+	expr, remain = line.TakeUntil(func(s string) bool { return s[0] == ',' || buf.Whitespace(s) })
+
+	switch {
+	case remain.StartsWith(buf.Str(",X")):
+		mode = AbsoluteXIndex
+		remain = remain.Advance(2)
+	case remain.StartsWith(buf.Str(",Y")):
+		mode = AbsoluteYIndex
+		remain = remain.Advance(2)
+	default:
+		mode = Absolute
+	}
+
+	_, remain = remain.TakeWhile(buf.Whitespace)
 	return
 }
 
