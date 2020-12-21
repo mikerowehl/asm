@@ -331,7 +331,7 @@ func (a *assembler) parseOperation(line buf.Buffer) error {
 		return nil
 	}
 
-	op, remain := line.TakeWhile(buf.Word)
+	op, remain := remain.TakeWhile(buf.Word)
 	/*
 		if pseudo, found := pseudoOps[op.String()]; found {
 			return nil
@@ -357,7 +357,8 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 		op:       i,
 		operands: operands,
 	}
-	fmt.Printf("instruction %+v", instruction)
+	a.prg = append(a.prg, &instruction)
+	fmt.Printf("instruction %+v\n", instruction)
 	return nil
 }
 
@@ -376,7 +377,7 @@ func (a *assembler) parseOperands(line buf.Buffer) (oper Operands, remain buf.Bu
 	case remain.StartsWith(buf.Char('#')):
 		oper.mode = Immediate
 		oper.imm = true
-		oper.e, _, err = a.exprParser.Parse(remain.Advance(1))
+		oper.e, remain, err = a.exprParser.Parse(remain.Advance(1))
 	default:
 		var e buf.Buffer
 		oper.mode, e, remain, err = a.parseAbsolute(remain)
@@ -572,6 +573,10 @@ func (a *assembler) parseReader(r io.Reader) (err error) {
 	return nil
 }
 
+func (a *assembler) dumpAssembler(w io.Writer) {
+	fmt.Fprintf(w, "%d segments in program", len(a.prg))
+}
+
 func main() {
 	a := assembler{}
 	err := a.parseFile(os.Args[1])
@@ -579,7 +584,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := firstPassAssemble(prg); err != nil {
-		log.Fatal(err)
-	}
+	a.dumpAssembler(os.Stdout)
 }
