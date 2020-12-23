@@ -369,7 +369,7 @@ func (a *assembler) parseOperands(line buf.Buffer) (oper Operands, remain buf.Bu
 		oper.mode = Immediate
 	case remain.StartsWith(buf.Char('(')):
 		var e buf.Buffer
-		oper.mode, e, remain, err = a.parseIndirect(remain)
+		oper.mode, e, remain, err = a.parseIndirect(remain.Advance(1))
 		if err != nil {
 			return
 		}
