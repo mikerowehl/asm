@@ -6,36 +6,11 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/mikerowehl/asm/buf"
 	"github.com/mikerowehl/asm/expr"
 )
-
-// val is an argument value, it can either be a direct immediate value or
-// a symbol we need to resolve
-type val struct {
-	imm int
-	sym string
-}
-
-type Register int
-
-const (
-	RegNone Register = 0
-	RegA             = 1
-	RegX             = 2
-	RegY             = 3
-)
-
-// args is the argument set to a single machine instruction.
-type args struct {
-	reg  Register
-	imm  *val
-	addr *val
-	ind  bool
-}
 
 type Instruction int
 
@@ -246,7 +221,6 @@ type Operands struct {
 type inst struct {
 	op       Instruction
 	operands Operands
-	args     args
 	chunk    binaryChunk
 }
 
@@ -259,56 +233,6 @@ type assembler struct {
 	prg        program
 	sym        map[string]int
 	exprParser expr.Parser
-}
-
-func parseArgs(a string) (ret args) {
-	if strings.Compare(a, "A") == 0 {
-		ret.reg = 1
-	} else if a[0] == '(' {
-		ret.ind = true
-		if strings.HasSuffix(a, ",X)") {
-			ret.reg = 2
-			v, err := strconv.ParseInt(a[1:len(a)-3], 0, 16)
-			if err != nil {
-				log.Fatal("Error parsing int", a)
-			}
-			ret.addr = &val{imm: int(v)}
-		} else if strings.HasSuffix(a, "),Y") {
-			ret.reg = 3
-			v, err := strconv.ParseInt(a[1:len(a)-3], 0, 16)
-			if err != nil {
-				log.Fatal("Error parsing int", a)
-			}
-			ret.addr = &val{imm: int(v)}
-		}
-	} else if a[0] == '#' {
-		v, err := strconv.ParseInt(a[1:], 0, 16)
-		if err != nil {
-			log.Fatal("Error parsing int", a)
-		}
-		ret.imm = &val{imm: int(v)}
-	} else if strings.HasSuffix(a, ",X") {
-		ret.reg = 2
-		v, err := strconv.ParseInt(a[:len(a)-2], 0, 16)
-		if err != nil {
-			log.Fatal("Error parsing int", a)
-		}
-		ret.addr = &val{imm: int(v)}
-	} else if strings.HasSuffix(a, ",Y") {
-		ret.reg = 3
-		v, err := strconv.ParseInt(a[:len(a)-2], 0, 16)
-		if err != nil {
-			log.Fatal("Error parsing int", a)
-		}
-		ret.addr = &val{imm: int(v)}
-	} else {
-		v, err := strconv.ParseInt(a, 0, 16)
-		if err != nil {
-			log.Fatal("Error parsing int", a)
-		}
-		ret.addr = &val{imm: int(v)}
-	}
-	return
 }
 
 func (a *assembler) parseLine(line buf.Buffer) error {
@@ -427,130 +351,6 @@ func (a *assembler) parseAbsolute(line buf.Buffer) (mode AddressingMode, expr bu
 
 	_, remain = remain.TakeWhile(buf.Whitespace)
 	return
-}
-
-func assembleInstruction(i *inst, forms []OpcodeForm) (err error) {
-	for _, f := range forms {
-		switch f.mode {
-		case Implied:
-			if i.args.imm == nil && i.args.addr == nil {
-				i.chunk.mem = []uint8{f.opcode}
-				return
-			}
-		case Immediate:
-			if i.args.imm != nil {
-				i.chunk.mem = []uint8{f.opcode, uint8(i.args.imm.imm & 0xff)}
-				return
-			}
-		case Accumulator:
-			if i.args.reg == RegA {
-				i.chunk.mem = []uint8{f.opcode}
-				return
-			}
-		case Absolute:
-			if i.args.addr != nil && !i.args.ind && i.args.reg == RegNone {
-				i.chunk.mem = []uint8{
-					f.opcode,
-					uint8((i.args.addr.imm >> 8) & 0xff),
-					uint8(i.args.addr.imm & 0xff),
-				}
-				return
-			}
-		case AbsoluteXIndex:
-			if i.args.addr != nil && !i.args.ind && i.args.reg == RegX {
-				i.chunk.mem = []uint8{
-					f.opcode,
-					uint8((i.args.addr.imm >> 8) & 0xff),
-					uint8(i.args.addr.imm & 0xff),
-				}
-				return
-			}
-		case AbsoluteYIndex:
-			if i.args.addr != nil && !i.args.ind && i.args.reg == RegY {
-				i.chunk.mem = []uint8{
-					f.opcode,
-					uint8((i.args.addr.imm >> 8) & 0xff),
-					uint8(i.args.addr.imm & 0xff),
-				}
-				return
-			}
-		case Relative:
-			if i.args.addr != nil && i.args.addr.imm >= -128 && i.args.addr.imm <= 127 && !i.args.ind && i.args.reg == RegNone {
-				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
-				return
-			}
-		case Indirect:
-			if i.args.addr != nil && i.args.ind && i.args.reg == RegNone {
-				i.chunk.mem = []uint8{
-					f.opcode,
-					uint8((i.args.addr.imm >> 8) & 0xff),
-					uint8(i.args.addr.imm & 0xff),
-				}
-				return
-			}
-		case XIndexedIndirect:
-			if i.args.addr != nil && i.args.ind && i.args.reg == RegX {
-				i.chunk.mem = []uint8{
-					f.opcode,
-					uint8((i.args.addr.imm >> 8) & 0xff),
-					uint8(i.args.addr.imm & 0xff),
-				}
-				return
-			}
-		case IndirectYIndexed:
-			if i.args.addr != nil && i.args.ind && i.args.reg == RegY {
-				i.chunk.mem = []uint8{
-					f.opcode,
-					uint8((i.args.addr.imm >> 8) & 0xff),
-					uint8(i.args.addr.imm & 0xff),
-				}
-				return
-			}
-		case Zeropage:
-			if i.args.addr != nil && i.args.addr.imm <= 255 && !i.args.ind && i.args.reg == RegNone {
-				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
-				return
-			}
-		case ZeropageXIndexed:
-			if i.args.addr != nil && i.args.addr.imm <= 255 && !i.args.ind && i.args.reg == RegX {
-				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
-				return
-			}
-		case ZeropageYIndexed:
-			if i.args.addr != nil && i.args.addr.imm <= 255 && !i.args.ind && i.args.reg == RegY {
-				i.chunk.mem = []uint8{f.opcode, uint8(i.args.addr.imm & 0xff)}
-				return
-			}
-		}
-	}
-	err = fmt.Errorf("Can't find matching form for instruction: %s", i.op)
-	return
-}
-
-// firstPassAssemble walks through each entry in the program and creates the
-// associated binary form. At this point we don't always have all the info we
-// need for references (for instance forward references to labels, we need to
-// figure out the address for the associated chunk). That means we might have
-// to default to longer instruction forms. If we don't know the value of an
-// expression and the instruction has both 8 and 16 bit addresses accepted, we
-// just use the 16 bit version to be safe.
-func firstPassAssemble(p program) error {
-	for _, i := range p {
-		fmt.Println("Instruction: ", i.op)
-		fmt.Println("  Args: ", i.args)
-		forms, ok := InstructionSet[i.op]
-		if !ok {
-			return fmt.Errorf("Invalid instruction: %v", i.op)
-		}
-		if err := assembleInstruction(i, forms); err != nil {
-			log.Fatal("Error assembling: ", err)
-		}
-		if i.chunk.mem == nil {
-			log.Fatalf("Can't find matching instruction for %s", i.op)
-		}
-		fmt.Printf("Assembled form %s\n", i.chunk)
-	}
-	return nil
 }
 
 func (a *assembler) parseFile(fn string) (err error) {
