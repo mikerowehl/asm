@@ -191,6 +191,14 @@ var InstructionSet = map[Instruction][]OpcodeForm{
 	},
 }
 
+type pseudoOpEntry struct {
+	fn func(a *assembler, line buf.Buffer) error
+}
+
+var pseudoOps = map[string]pseudoOpEntry{
+	".org": {fn: parseOrg},
+}
+
 type binaryChunk struct {
 	addr int
 	mem  []uint8
@@ -229,6 +237,7 @@ type program []*inst
 var prg = program{}
 
 type assembler struct {
+	origin     int
 	labels     []string
 	prg        program
 	sym        map[string]int
@@ -256,11 +265,9 @@ func (a *assembler) parseOperation(line buf.Buffer) error {
 	}
 
 	op, remain := remain.TakeWhile(buf.Word)
-	/*
-		if pseudo, found := pseudoOps[op.String()]; found {
-			return nil
-		}
-	*/
+	if pseudo, found := pseudoOps[op.String()]; found {
+		return pseudo.fn(a, remain)
+	}
 	return a.parseOpcode(op.String(), remain)
 }
 
@@ -353,6 +360,17 @@ func (a *assembler) parseAbsolute(line buf.Buffer) (mode AddressingMode, expr bu
 	return
 }
 
+func parseOrg(a *assembler, line buf.Buffer) error {
+	e, _, err := a.exprParser.Parse(line.Advance(line.Scan(buf.Whitespace)))
+	if err != nil {
+		return err
+	}
+
+	e.Eval(a.sym)
+	a.origin, err = e.Value()
+	return err
+}
+
 func (a *assembler) parseFile(fn string) (err error) {
 	file, err := os.Open(os.Args[1])
 	if err != nil {
@@ -374,7 +392,8 @@ func (a *assembler) parseReader(r io.Reader) (err error) {
 }
 
 func (a *assembler) dumpAssembler(w io.Writer) {
-	fmt.Fprintf(w, "%d segments in program", len(a.prg))
+	fmt.Fprintf(w, "%d segments in program\n", len(a.prg))
+	fmt.Fprintf(w, "Starting address: %d\n", a.origin)
 }
 
 func main() {

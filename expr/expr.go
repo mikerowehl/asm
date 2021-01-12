@@ -169,6 +169,13 @@ func (n *Node) Eval(sym map[string]int) bool {
 	return n.evaluated
 }
 
+func (n *Node) Value() (int, error) {
+	if !n.evaluated {
+		return 0, fmt.Errorf("Attempt to take value of unevaluated expression")
+	}
+	return n.value, nil
+}
+
 func (p *Parser) Parse(line buf.Buffer) (n *Node, remain buf.Buffer, err error) {
 	p.prevTokenType = tokenNil
 	for err == nil {
