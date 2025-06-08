@@ -1,3 +1,6 @@
+// A shunting yard algorithm based parser for simple expressions. Refer to
+// https://en.wikipedia.org/wiki/Shunting_yard_algorithm for a description of
+// how the node and operator stacks are used.
 package expr
 
 import (

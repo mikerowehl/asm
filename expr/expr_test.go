@@ -150,6 +150,12 @@ func TestEval(t *testing.T) {
 		}, {
 			input:    "4-(2-1)",
 			expected: 3,
+		}, {
+			input:    "4*3+9",
+			expected: 21,
+		}, {
+			input:    "4*(3+9)",
+			expected: 48,
 		},
 	}
 	for _, tc := range tests {
