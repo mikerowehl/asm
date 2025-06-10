@@ -41,7 +41,7 @@ func TestParseNumber(t *testing.T) {
 	}
 }
 
-func TestParseString(t *testing.T) {
+func TestParseIdentifier(t *testing.T) {
 	tests := []struct {
 		input          string
 		expectedVal    string
@@ -49,26 +49,16 @@ func TestParseString(t *testing.T) {
 		expectedErr    bool
 	}{
 		{
-			input:          "\"abcd\"",
+			input:          "abcd",
 			expectedVal:    "abcd",
 			expectedRemain: "",
 			expectedErr:    false,
-		}, {
-			input:          "\"0x1234\"",
-			expectedVal:    "0x1234",
-			expectedRemain: "",
-			expectedErr:    false,
-		}, {
-			input:          "\"abc",
-			expectedVal:    "abc",
-			expectedRemain: "",
-			expectedErr:    true,
 		},
 	}
 	for _, tc := range tests {
 		p := Parser{}
 		b := buf.NewBuffer(tc.input)
-		v, r, e := p.parseString(b)
+		v, r, e := p.parseIdentifier(b)
 		require.Equal(t, tc.expectedVal, v)
 		require.Equal(t, tc.expectedRemain, r.String())
 		require.Equal(t, tc.expectedErr, e != nil)
@@ -89,8 +79,8 @@ func TestParseToken(t *testing.T) {
 			expectedToken:  Token{typ: tokenNumber, value: 1234},
 			expectedRemain: "and some other stuff",
 		}, {
-			input:          "\"string\" and some other stuff",
-			expectedToken:  Token{typ: tokenString, stringValue: "string"},
+			input:          "string and some other stuff",
+			expectedToken:  Token{typ: tokenIdentifier, identifier: "string"},
 			expectedRemain: "and some other stuff",
 		}, {
 			input:          "- and some other stuff",
@@ -164,6 +154,35 @@ func TestEval(t *testing.T) {
 		n, _, e := p.Parse(b)
 		require.Nil(t, e)
 		eval := n.Eval(map[string]int{})
+		require.True(t, eval)
+		require.Equal(t, tc.expected, n.value)
+	}
+}
+
+func TestEvalBinding(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{
+			input:    "1+two",
+			expected: 3,
+		}, {
+			input:    "three-1",
+			expected: 2,
+		},
+	}
+	bindings := map[string]int{
+		"one":   1,
+		"two":   2,
+		"three": 3,
+	}
+	for _, tc := range tests {
+		p := Parser{}
+		b := buf.NewBuffer(tc.input)
+		n, _, e := p.Parse(b)
+		require.Nil(t, e)
+		eval := n.Eval(bindings)
 		require.True(t, eval)
 		require.Equal(t, tc.expected, n.value)
 	}

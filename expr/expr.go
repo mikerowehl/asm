@@ -82,6 +82,7 @@ const (
 	opString
 	opLeftParen
 	opRightParen
+	opIdentifier
 )
 
 var opTable = []opEntry{
@@ -103,6 +104,7 @@ var opTable = []opEntry{
 	{0, 0, false, "", nil}, // string
 	{0, 0, false, "", nil}, // left paren
 	{0, 0, false, "", nil}, // righ paren
+	{0, 0, false, "", nil}, // identifier
 }
 
 func (op Op) isBinary() bool {
@@ -133,11 +135,12 @@ func (op Op) canTree(other Op) bool {
 }
 
 type Node struct {
-	op        Op
-	value     int
-	evaluated bool
-	lChild    *Node
-	rChild    *Node
+	op         Op
+	value      int
+	identifier string
+	evaluated  bool
+	lChild     *Node
+	rChild     *Node
 }
 
 func (n *Node) String() string {
@@ -157,6 +160,9 @@ func (n *Node) Eval(sym map[string]int) bool {
 	if !n.evaluated {
 		switch {
 		case n.op == opNumber:
+			n.evaluated = true
+		case n.op == opIdentifier:
+			n.value = sym[n.identifier]
 			n.evaluated = true
 		case n.op.isBinary():
 			n.lChild.Eval(sym)
@@ -200,7 +206,13 @@ func (p *Parser) Parse(line buf.Buffer) (n *Node, remain buf.Buffer, err error) 
 				evaluated: true,
 			}
 			p.nodeStack.push(cur)
-
+		case tokenIdentifier:
+			cur := &Node{
+				op:         opIdentifier,
+				identifier: token.identifier,
+				evaluated:  false,
+			}
+			p.nodeStack.push(cur)
 		case tokenOp:
 			for err == nil && !p.opStack.isEmpty() && token.op.canTree(p.opStack.peek()) {
 				var treeOp Op
@@ -264,6 +276,9 @@ func (p *Parser) parseToken(line buf.Buffer) (t Token, remain buf.Buffer, err er
 	case line.StartsWith(buf.Digit) || line.StartsWith(buf.Char('$')):
 		t.value, remain, err = p.parseNumber(line)
 		t.typ = tokenNumber
+	case line.StartsWith(buf.Letter):
+		t.identifier, remain, err = p.parseIdentifier(line)
+		t.typ = tokenIdentifier
 	case line.StartsWith(buf.Char('"')):
 		t.stringValue, remain, err = p.parseString(line)
 		t.typ = tokenString
@@ -340,5 +355,12 @@ func (p *Parser) parseString(line buf.Buffer) (value string, remain buf.Buffer,
 		return
 	}
 	remain = remain.Advance(1)
+	return
+}
+
+func (p *Parser) parseIdentifier(line buf.Buffer) (value string, remain buf.Buffer,
+	err error) {
+	valueBuf, remain := line.TakeWhile(buf.Letter)
+	value = valueBuf.String()
 	return
 }
