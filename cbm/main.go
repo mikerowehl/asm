@@ -289,7 +289,7 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 		operands: operands,
 	}
 	a.prg = append(a.prg, &instruction)
-	fmt.Printf("instruction %+v\n", instruction)
+	// fmt.Printf("instruction %+v\n", instruction)
 	return nil
 }
 
