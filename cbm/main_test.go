@@ -22,7 +22,7 @@ func TestAssemble(t *testing.T) {
 		t.Fatal("Error from parseReader")
 	}
 	i := a.prg[0]
-	require.Equal(t, i.op, LDA)
+	require.Equal(t, LDA, i.op)
 	e := i.operands.e.Eval(map[string]int{})
 	if !e {
 		t.Fatal("Error evaluating expression")
@@ -31,5 +31,6 @@ func TestAssemble(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error getting value of expression")
 	}
-	require.Equal(t, val, 4)
+	require.Equal(t, 4, val)
+	require.Equal(t, uint8(0xa9), i.chunk.mem[0])
 }

@@ -189,6 +189,30 @@ var InstructionSet = map[Instruction][]OpcodeForm{
 		{mode: XIndexedIndirect, opcode: 0x21},
 		{mode: IndirectYIndexed, opcode: 0x31},
 	},
+	LDA: {
+		{mode: Immediate, opcode: 0xa9},
+		{mode: Zeropage, opcode: 0xa5},
+		{mode: ZeropageXIndexed, opcode: 0xb5},
+		{mode: Absolute, opcode: 0xad},
+		{mode: AbsoluteXIndex, opcode: 0xbd},
+		{mode: AbsoluteYIndex, opcode: 0xb9},
+		{mode: XIndexedIndirect, opcode: 0xa1},
+		{mode: IndirectYIndexed, opcode: 0xb1},
+	},
+}
+
+func instructionEntry(i Instruction, m AddressingMode) (uint8, error) {
+	forms, ok := InstructionSet[i]
+	if !ok {
+		return 0, fmt.Errorf("Can't find instruction in table")
+	}
+
+	for _, val := range forms {
+		if val.mode == m {
+			return val.opcode, nil
+		}
+	}
+	return 0, fmt.Errorf("Invalid addressing mode for %s", InstructionStrings[i])
 }
 
 type pseudoOpEntry struct {
@@ -284,9 +308,14 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 	if !remain.IsEmpty() || remain.StartsWith(buf.Char(';')) {
 		return fmt.Errorf("Unexpected text %v", remain.String())
 	}
+	op, err := instructionEntry(i, operands.mode)
+	if err != nil {
+		return err
+	}
 	instruction := inst{
 		op:       i,
 		operands: operands,
+		chunk:    binaryChunk{addr: 0, mem: []uint8{op}},
 	}
 	a.prg = append(a.prg, &instruction)
 	// fmt.Printf("instruction %+v\n", instruction)
