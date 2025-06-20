@@ -201,18 +201,18 @@ var InstructionSet = map[Instruction][]OpcodeForm{
 	},
 }
 
-func instructionEntry(i Instruction, m AddressingMode) (uint8, error) {
+func instructionEntry(i Instruction, m AddressingMode) (OpcodeForm, error) {
 	forms, ok := InstructionSet[i]
 	if !ok {
-		return 0, fmt.Errorf("Can't find instruction in table")
+		return OpcodeForm{}, fmt.Errorf("Can't find instruction #%d in table", i)
 	}
 
 	for _, val := range forms {
 		if val.mode == m {
-			return val.opcode, nil
+			return val, nil
 		}
 	}
-	return 0, fmt.Errorf("Invalid addressing mode for %s", InstructionStrings[i])
+	return OpcodeForm{}, fmt.Errorf("Invalid addressing mode for %s", InstructionStrings[i])
 }
 
 type pseudoOpEntry struct {
@@ -308,14 +308,14 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 	if !remain.IsEmpty() || remain.StartsWith(buf.Char(';')) {
 		return fmt.Errorf("Unexpected text %v", remain.String())
 	}
-	op, err := instructionEntry(i, operands.mode)
+	form, err := instructionEntry(i, operands.mode)
 	if err != nil {
 		return err
 	}
 	instruction := inst{
 		op:       i,
 		operands: operands,
-		chunk:    binaryChunk{addr: 0, mem: []uint8{op}},
+		chunk:    binaryChunk{addr: 0, mem: []uint8{form.opcode}},
 	}
 	a.prg = append(a.prg, &instruction)
 	// fmt.Printf("instruction %+v\n", instruction)
@@ -426,11 +426,10 @@ func (a *assembler) dumpAssembler(w io.Writer) {
 }
 
 func main() {
-	a := assembler{}
+	a := assembler{origin: 0xc00}
 	err := a.parseFile(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	a.dumpAssembler(os.Stdout)
 }
