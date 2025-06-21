@@ -166,38 +166,51 @@ const (
 type OpcodeForm struct {
 	mode   AddressingMode
 	opcode uint8
+	bytes  uint8 // Length of this form of the instruction
 }
 
 var InstructionSet = map[Instruction][]OpcodeForm{
 	ADC: {
-		{mode: Immediate, opcode: 0x69},
-		{mode: Zeropage, opcode: 0x65},
-		{mode: ZeropageXIndexed, opcode: 0x75},
-		{mode: Absolute, opcode: 0x6d},
-		{mode: AbsoluteXIndex, opcode: 0x7d},
-		{mode: AbsoluteYIndex, opcode: 0x79},
-		{mode: XIndexedIndirect, opcode: 0x61},
-		{mode: IndirectYIndexed, opcode: 0x71},
+		{mode: Immediate, opcode: 0x69, bytes: 2},
+		{mode: Zeropage, opcode: 0x65, bytes: 2},
+		{mode: ZeropageXIndexed, opcode: 0x75, bytes: 2},
+		{mode: Absolute, opcode: 0x6d, bytes: 3},
+		{mode: AbsoluteXIndex, opcode: 0x7d, bytes: 3},
+		{mode: AbsoluteYIndex, opcode: 0x79, bytes: 3},
+		{mode: XIndexedIndirect, opcode: 0x61, bytes: 2},
+		{mode: IndirectYIndexed, opcode: 0x71, bytes: 2},
 	},
 	AND: {
-		{mode: Immediate, opcode: 0x29},
-		{mode: Zeropage, opcode: 0x25},
-		{mode: ZeropageXIndexed, opcode: 0x35},
-		{mode: Absolute, opcode: 0x2d},
-		{mode: AbsoluteXIndex, opcode: 0x3d},
-		{mode: AbsoluteYIndex, opcode: 0x39},
-		{mode: XIndexedIndirect, opcode: 0x21},
-		{mode: IndirectYIndexed, opcode: 0x31},
+		{mode: Immediate, opcode: 0x29, bytes: 2},
+		{mode: Zeropage, opcode: 0x25, bytes: 2},
+		{mode: ZeropageXIndexed, opcode: 0x35, bytes: 2},
+		{mode: Absolute, opcode: 0x2d, bytes: 3},
+		{mode: AbsoluteXIndex, opcode: 0x3d, bytes: 3},
+		{mode: AbsoluteYIndex, opcode: 0x39, bytes: 3},
+		{mode: XIndexedIndirect, opcode: 0x21, bytes: 2},
+		{mode: IndirectYIndexed, opcode: 0x31, bytes: 2},
 	},
 	LDA: {
-		{mode: Immediate, opcode: 0xa9},
-		{mode: Zeropage, opcode: 0xa5},
-		{mode: ZeropageXIndexed, opcode: 0xb5},
-		{mode: Absolute, opcode: 0xad},
-		{mode: AbsoluteXIndex, opcode: 0xbd},
-		{mode: AbsoluteYIndex, opcode: 0xb9},
-		{mode: XIndexedIndirect, opcode: 0xa1},
-		{mode: IndirectYIndexed, opcode: 0xb1},
+		{mode: Immediate, opcode: 0xa9, bytes: 2},
+		{mode: Zeropage, opcode: 0xa5, bytes: 2},
+		{mode: ZeropageXIndexed, opcode: 0xb5, bytes: 2},
+		{mode: Absolute, opcode: 0xad, bytes: 3},
+		{mode: AbsoluteXIndex, opcode: 0xbd, bytes: 3},
+		{mode: AbsoluteYIndex, opcode: 0xb9, bytes: 3},
+		{mode: XIndexedIndirect, opcode: 0xa1, bytes: 2},
+		{mode: IndirectYIndexed, opcode: 0xb1, bytes: 2},
+	},
+	STA: {
+		{mode: Zeropage, opcode: 0x85, bytes: 2},
+		{mode: ZeropageXIndexed, opcode: 0x95, bytes: 2},
+		{mode: Absolute, opcode: 0x8d, bytes: 3},
+		{mode: AbsoluteXIndex, opcode: 0x9d, bytes: 3},
+		{mode: AbsoluteYIndex, opcode: 0x99, bytes: 3},
+		{mode: XIndexedIndirect, opcode: 0x81, bytes: 2},
+		{mode: IndirectYIndexed, opcode: 0x91, bytes: 2},
+	},
+	RTS: {
+		{mode: Implied, opcode: 0x60, bytes: 1},
 	},
 }
 
@@ -312,10 +325,26 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 	if err != nil {
 		return err
 	}
+	chunkMem := make([]uint8, form.bytes)
+	chunkMem[0] = form.opcode
+	if form.bytes >= 2 {
+		ok := operands.e.Eval(map[string]int{})
+		if !ok {
+			return fmt.Errorf("Error evaluating expression")
+		}
+		arg, err := operands.e.Value()
+		if err != nil {
+			return fmt.Errorf("Error getting expression value %v", err)
+		}
+		chunkMem[1] = uint8(arg & 0xff)
+		if form.bytes == 3 {
+			chunkMem[2] = uint8((arg >> 8) & 0xff)
+		}
+	}
 	instruction := inst{
 		op:       i,
 		operands: operands,
-		chunk:    binaryChunk{addr: 0, mem: []uint8{form.opcode}},
+		chunk:    binaryChunk{addr: 0, mem: chunkMem},
 	}
 	a.prg = append(a.prg, &instruction)
 	// fmt.Printf("instruction %+v\n", instruction)
@@ -326,7 +355,7 @@ func (a *assembler) parseOperands(line buf.Buffer) (oper Operands, remain buf.Bu
 	remain = line.Advance(line.Scan(buf.Whitespace))
 	switch {
 	case remain.IsEmpty():
-		oper.mode = Immediate
+		oper.mode = Implied
 	case remain.StartsWith(buf.Char('(')):
 		var e buf.Buffer
 		oper.mode, e, remain, err = a.parseIndirect(remain.Advance(1))
@@ -425,11 +454,47 @@ func (a *assembler) dumpAssembler(w io.Writer) {
 	fmt.Fprintf(w, "Starting address: %d\n", a.origin)
 }
 
+func (a *assembler) binaryImage() []uint8 {
+	bytes := []uint8{}
+	for _, val := range a.prg {
+		bytes = append(bytes, val.chunk.mem...)
+	}
+	return bytes
+}
+
+func writeProgram(startAddr int, bytes []uint8, filename string) (err error) {
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("Create file %v", err)
+	}
+	defer file.Close()
+
+	startBytes := []uint8{uint8(startAddr & 0xff), uint8((startAddr >> 8) & 0xff)}
+
+	_, err = file.Write(startBytes)
+	if err != nil {
+		return fmt.Errorf("Error writing bytes %v", err)
+	}
+	_, err = file.Write(bytes)
+	if err != nil {
+		return fmt.Errorf("Error writing bytes %v", err)
+	}
+	return nil
+}
+
 func main() {
-	a := assembler{origin: 0xc00}
+	a := assembler{origin: 0xc000}
 	err := a.parseFile(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
-	a.dumpAssembler(os.Stdout)
+	// a.dumpAssembler(os.Stdout)
+	bytes := a.binaryImage()
+	for i, val := range bytes {
+		fmt.Printf("%d = %X\n", i, val)
+	}
+	err = writeProgram(a.origin, bytes, "out.prg")
+	if err != nil {
+		log.Fatal(err)
+	}
 }
