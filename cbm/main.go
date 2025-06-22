@@ -441,7 +441,8 @@ func (a *assembler) parseFile(fn string) (err error) {
 func (a *assembler) parseReader(r io.Reader) (err error) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		err = a.parseLine(buf.NewBuffer(scanner.Text()))
+		upperLine := strings.ToUpper(scanner.Text())
+		err = a.parseLine(buf.NewBuffer(upperLine))
 		if err != nil {
 			return
 		}
