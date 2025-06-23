@@ -169,6 +169,7 @@ type OpcodeForm struct {
 	bytes  uint8 // Length of this form of the instruction
 }
 
+// Built out from http://www.6502.org/users/obelisk/6502/reference.html
 var InstructionSet = map[Instruction][]OpcodeForm{
 	ADC: {
 		{mode: Immediate, opcode: 0x69, bytes: 2},
