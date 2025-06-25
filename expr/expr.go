@@ -156,26 +156,40 @@ func (n *Node) String() string {
 	}
 }
 
-func (n *Node) Eval(sym map[string]int) bool {
+func (n *Node) Eval(sym map[string]int) (bool, error) {
+	var ok bool
+	var err error
 	if !n.evaluated {
 		switch {
 		case n.op == opNumber:
 			n.evaluated = true
 		case n.op == opIdentifier:
-			n.value = sym[n.identifier]
+			n.value, ok = sym[n.identifier]
+			if !ok {
+				return false, fmt.Errorf("Undefined symbol used: %s", n.identifier)
+			}
 			n.evaluated = true
 		case n.op.isBinary():
-			n.lChild.Eval(sym)
-			n.rChild.Eval(sym)
-			n.value = opTable[n.op].eval(n.lChild.value, n.rChild.value)
+			ok, err = n.lChild.Eval(sym)
+			if err != nil {
+				return false, err
+			}
+			ok, err = n.rChild.Eval(sym)
+			if err != nil {
+				return false, err
+			}
+			n.value = n.op.eval(n.lChild.value, n.rChild.value)
 			n.evaluated = true
 		case n.op.isUnary():
-			n.lChild.Eval(sym)
-			n.value = opTable[n.op].eval(n.lChild.value, 0)
+			ok, err = n.lChild.Eval(sym)
+			if err != nil {
+				return false, err
+			}
+			n.value = n.op.eval(n.lChild.value, 0)
 			n.evaluated = true
 		}
 	}
-	return n.evaluated
+	return n.evaluated, nil
 }
 
 func (n *Node) Value() (int, error) {

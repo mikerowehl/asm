@@ -153,8 +153,9 @@ func TestEval(t *testing.T) {
 		b := buf.NewBuffer(tc.input)
 		n, _, e := p.Parse(b)
 		require.Nil(t, e)
-		eval := n.Eval(map[string]int{})
+		eval, err := n.Eval(map[string]int{})
 		require.True(t, eval)
+		require.Nil(t, err)
 		require.Equal(t, tc.expected, n.value)
 	}
 }
@@ -170,6 +171,9 @@ func TestEvalBinding(t *testing.T) {
 		}, {
 			input:    "three-1",
 			expected: 2,
+		}, {
+			input:    "one+(two*three)",
+			expected: 7,
 		},
 	}
 	bindings := map[string]int{
@@ -182,8 +186,35 @@ func TestEvalBinding(t *testing.T) {
 		b := buf.NewBuffer(tc.input)
 		n, _, e := p.Parse(b)
 		require.Nil(t, e)
-		eval := n.Eval(bindings)
+		eval, err := n.Eval(bindings)
 		require.True(t, eval)
+		require.Nil(t, err)
 		require.Equal(t, tc.expected, n.value)
+	}
+}
+
+func TestEvalError(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{
+			input:    "1+four",
+			expected: 3,
+		},
+	}
+	bindings := map[string]int{
+		"one":   1,
+		"two":   2,
+		"three": 3,
+	}
+	for _, tc := range tests {
+		p := Parser{}
+		b := buf.NewBuffer(tc.input)
+		n, _, e := p.Parse(b)
+		require.Nil(t, e)
+		eval, err := n.Eval(bindings)
+		require.False(t, eval)
+		require.NotNil(t, err)
 	}
 }

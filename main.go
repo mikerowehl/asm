@@ -329,9 +329,9 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 	chunkMem := make([]uint8, form.bytes)
 	chunkMem[0] = form.opcode
 	if form.bytes >= 2 {
-		ok := operands.e.Eval(map[string]int{})
+		ok, err := operands.e.Eval(map[string]int{})
 		if !ok {
-			return fmt.Errorf("Error evaluating expression")
+			return err
 		}
 		arg, err := operands.e.Value()
 		if err != nil {

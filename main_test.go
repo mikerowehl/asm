@@ -24,8 +24,11 @@ func TestAssemble(t *testing.T) {
 	}
 	i := a.prg[0]
 	require.Equal(t, LDA, i.op)
-	e := i.operands.e.Eval(map[string]int{})
-	if !e {
+	eval, err := i.operands.e.Eval(map[string]int{})
+	if !eval {
+		t.Fatal("Error evaluating expression")
+	}
+	if err != nil {
 		t.Fatal("Error evaluating expression")
 	}
 	val, err := i.operands.e.Value()
