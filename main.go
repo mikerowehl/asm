@@ -218,7 +218,7 @@ var InstructionSet = map[Instruction][]OpcodeForm{
 func instructionEntry(i Instruction, m AddressingMode) (OpcodeForm, error) {
 	forms, ok := InstructionSet[i]
 	if !ok {
-		return OpcodeForm{}, fmt.Errorf("Can't find instruction #%d in table", i)
+		return OpcodeForm{}, fmt.Errorf("can't find instruction #%d in table", i)
 	}
 
 	for _, val := range forms {
@@ -226,7 +226,7 @@ func instructionEntry(i Instruction, m AddressingMode) (OpcodeForm, error) {
 			return val, nil
 		}
 	}
-	return OpcodeForm{}, fmt.Errorf("Invalid addressing mode for %s", InstructionStrings[i])
+	return OpcodeForm{}, fmt.Errorf("invalid addressing mode for %s", InstructionStrings[i])
 }
 
 type pseudoOpEntry struct {
@@ -253,8 +253,6 @@ func (c binaryChunk) String() string {
 	return fmt.Sprintf("%x: [%s]", c.addr, strings.Join(b, ", "))
 }
 
-var mem binaryChunk
-
 type Operands struct {
 	mode AddressingMode
 	e    *expr.Node
@@ -264,7 +262,11 @@ type Operands struct {
 
 // inst is an instruction with arguments. Chunk holds the machine form of the
 // instruction as we're assembling.
+// This is going to need a refactor, there should probably be another layer of
+// abstraction here. This isn't just instructions. It could also be a chunk of
+// memory the user has requested, or a string constant
 type inst struct {
+	labels   []string
 	op       Instruction
 	operands Operands
 	chunk    binaryChunk
@@ -272,12 +274,9 @@ type inst struct {
 
 type program []*inst
 
-var prg = program{}
-
 type assembler struct {
 	origin     int
-	labels     []string
-	currLabel  string
+	currLabel  []string // Needs to be copied when assigned to inst.labels
 	prg        program
 	sym        map[string]int
 	constants  map[string]int
@@ -297,7 +296,7 @@ func (a *assembler) parseLine(line buf.Buffer) error {
 
 func (a *assembler) parseLabel(line buf.Buffer) buf.Buffer {
 	label, remain := line.TakeWhile(buf.Letter)
-	a.currLabel = label.String()
+	a.currLabel = append(a.currLabel, label.String())
 	if remain.StartsWith(buf.Char(':')) {
 		remain = remain.Advance(1)
 	}
@@ -328,7 +327,7 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 	}
 	remain = remain.Advance(remain.Scan(buf.Whitespace))
 	if !remain.IsEmpty() || remain.StartsWith(buf.Char(';')) {
-		return fmt.Errorf("Unexpected text %v", remain.String())
+		return fmt.Errorf("unexpected text %v", remain.String())
 	}
 	form, err := instructionEntry(i, operands.mode)
 	if err != nil {
@@ -343,7 +342,7 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 		}
 		arg, err := operands.e.Value()
 		if err != nil {
-			return fmt.Errorf("Error getting expression value %v", err)
+			return fmt.Errorf("error getting expression value %v", err)
 		}
 		chunkMem[1] = uint8(arg & 0xff)
 		if form.bytes == 3 {
@@ -351,11 +350,13 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 		}
 	}
 	instruction := inst{
+		labels:   append([]string{}, a.currLabel...),
 		op:       i,
 		operands: operands,
 		chunk:    binaryChunk{addr: 0, mem: chunkMem},
 	}
 	a.prg = append(a.prg, &instruction)
+	a.currLabel = []string{}
 	// fmt.Printf("instruction %+v\n", instruction)
 	return nil
 }
@@ -405,7 +406,7 @@ func (a *assembler) parseIndirect(line buf.Buffer) (mode AddressingMode, expr bu
 		remain = remain.Advance(1)
 		return
 	}
-	err = fmt.Errorf("Incorrect indirect format: %s", line.String())
+	err = fmt.Errorf("incorrect indirect format: %s", line.String())
 	return
 }
 
@@ -429,16 +430,22 @@ func (a *assembler) parseAbsolute(line buf.Buffer) (mode AddressingMode, expr bu
 
 func (a *assembler) parseConst(line buf.Buffer) error {
 	e, _, err := a.exprParser.Parse(line)
-	if err == nil {
-		ok, err := e.Eval(map[string]int{})
-		if ok == true && err == nil {
-			val, err := e.Value()
-			if err == nil {
-				a.constants[a.currLabel] = val
-			}
-		}
+	if err != nil {
+		return fmt.Errorf("parseConst failed to parse expression %w", err)
 	}
-	return err
+	ok, err := e.Eval(map[string]int{})
+	if !ok || err != nil {
+		return fmt.Errorf("parseConst failed to evaluate expression %w", err)
+	}
+	val, err := e.Value()
+	if err != nil {
+		return fmt.Errorf("parseConst failed getting Value() %w", err)
+	}
+	for _, v := range a.currLabel {
+		a.constants[v] = val
+	}
+	a.currLabel = []string{}
+	return nil
 }
 
 func parseOrg(a *assembler, line buf.Buffer) error {
@@ -452,8 +459,8 @@ func parseOrg(a *assembler, line buf.Buffer) error {
 	return err
 }
 
-func (a *assembler) parseFile(fn string) (err error) {
-	file, err := os.Open(os.Args[1])
+func (a *assembler) parseFile(filename string) (err error) {
+	file, err := os.Open(filename)
 	if err != nil {
 		return
 	}
@@ -489,7 +496,7 @@ func (a *assembler) binaryImage() []uint8 {
 func writeProgram(startAddr int, bytes []uint8, filename string) (err error) {
 	file, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("Create file %v", err)
+		return fmt.Errorf("create file %v", err)
 	}
 	defer file.Close()
 
@@ -497,11 +504,11 @@ func writeProgram(startAddr int, bytes []uint8, filename string) (err error) {
 
 	_, err = file.Write(startBytes)
 	if err != nil {
-		return fmt.Errorf("Error writing bytes %v", err)
+		return fmt.Errorf("error writing bytes %v", err)
 	}
 	_, err = file.Write(bytes)
 	if err != nil {
-		return fmt.Errorf("Error writing bytes %v", err)
+		return fmt.Errorf("error writing bytes %v", err)
 	}
 	return nil
 }

@@ -49,3 +49,15 @@ func TestConst(t *testing.T) {
 	}
 	require.Equal(t, a.constants["TESTVAL"], 1234)
 }
+
+func TestMultiConst(t *testing.T) {
+	a := assembler{
+		constants: make(map[string]int),
+	}
+	err := a.parseReader(strings.NewReader("TESTONE\nTESTVAL=345"))
+	if err != nil {
+		t.Fatal("Error from parseReader")
+	}
+	require.Equal(t, a.constants["TESTVAL"], 345)
+	require.Equal(t, a.constants["TESTONE"], 345)
+}
