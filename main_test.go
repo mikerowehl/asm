@@ -38,3 +38,14 @@ func TestAssemble(t *testing.T) {
 	require.Equal(t, 4, val)
 	require.Equal(t, uint8(0xa9), i.chunk.mem[0])
 }
+
+func TestConst(t *testing.T) {
+	a := assembler{
+		constants: make(map[string]int),
+	}
+	err := a.parseReader(strings.NewReader("TESTVAL=1234"))
+	if err != nil {
+		t.Fatal("Error from parseReader")
+	}
+	require.Equal(t, a.constants["TESTVAL"], 1234)
+}

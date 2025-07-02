@@ -277,8 +277,10 @@ var prg = program{}
 type assembler struct {
 	origin     int
 	labels     []string
+	currLabel  string
 	prg        program
 	sym        map[string]int
+	constants  map[string]int
 	exprParser expr.Parser
 }
 
@@ -286,13 +288,19 @@ func (a *assembler) parseLine(line buf.Buffer) error {
 	remain := line
 	if !remain.StartsWith(buf.Whitespace) {
 		remain = a.parseLabel(remain)
+		if remain.StartsWith(buf.Char('=')) {
+			return a.parseConst(remain.Advance(1))
+		}
 	}
 	return a.parseOperation(remain)
 }
 
 func (a *assembler) parseLabel(line buf.Buffer) buf.Buffer {
-	label, remain := line.TakeUntil(buf.Char(':'))
-	a.labels = append(a.labels, label.String())
+	label, remain := line.TakeWhile(buf.Letter)
+	a.currLabel = label.String()
+	if remain.StartsWith(buf.Char(':')) {
+		remain = remain.Advance(1)
+	}
 	return remain
 }
 
@@ -417,6 +425,20 @@ func (a *assembler) parseAbsolute(line buf.Buffer) (mode AddressingMode, expr bu
 
 	_, remain = remain.TakeWhile(buf.Whitespace)
 	return
+}
+
+func (a *assembler) parseConst(line buf.Buffer) error {
+	e, _, err := a.exprParser.Parse(line)
+	if err == nil {
+		ok, err := e.Eval(map[string]int{})
+		if ok == true && err == nil {
+			val, err := e.Value()
+			if err == nil {
+				a.constants[a.currLabel] = val
+			}
+		}
+	}
+	return err
 }
 
 func parseOrg(a *assembler, line buf.Buffer) error {
