@@ -39,6 +39,17 @@ func TestAssemble(t *testing.T) {
 	require.Equal(t, uint8(0xa9), i.chunk.mem[0])
 }
 
+func TestImmediateExpr(t *testing.T) {
+	a := assembler{}
+	err := a.parseReader(strings.NewReader(" LDA #(2+4)"))
+	if err != nil {
+		t.Fatal("Error from parseReader")
+	}
+	bytes := a.binaryImage()
+	require.Equal(t, bytes[0], uint8(0xa9))
+	require.Equal(t, bytes[1], uint8(6))
+}
+
 func TestConst(t *testing.T) {
 	a := assembler{
 		constants: make(map[string]int),
