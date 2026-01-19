@@ -234,7 +234,8 @@ type pseudoOpEntry struct {
 }
 
 var pseudoOps = map[string]pseudoOpEntry{
-	".org": {fn: parseOrg},
+	".ORG":  {fn: parseOrg},
+	".BYTE": {fn: parseOrg},
 }
 
 type binaryChunk struct {
@@ -260,6 +261,57 @@ type Operands struct {
 	abs  bool
 }
 
+// ----- New Node style
+type Node interface {
+	Pos() int
+	node()
+}
+
+type LabelNode struct {
+	Name     string
+	position int
+}
+
+func (n *LabelNode) Pos() int { return n.position }
+func (n *LabelNode) node()    {}
+
+type InstructionNode struct {
+	inst     *inst
+	position int
+}
+
+func (n *InstructionNode) Pos() int { return n.position }
+func (n *InstructionNode) node()    {}
+
+type PseudoOpKind int
+
+const (
+	PseudoOrg PseudoOpKind = iota
+	PseudoByte
+	PseudoEqu
+)
+
+var PseudoOpMap = map[string]PseudoOpKind{
+	".ORG":  PseudoOrg,
+	".BYTE": PseudoByte,
+	".EQU":  PseudoEqu,
+}
+
+type PseudoOp struct {
+	Kind PseudoOpKind
+	Args []*expr.Node
+}
+
+type PseudoNode struct {
+	Pseudo   *PseudoOp
+	position int
+}
+
+func (n *PseudoNode) Pos() int { return n.position }
+func (n *PseudoNode) node()    {}
+
+// ----- End Node style
+
 // inst is an instruction with arguments. Chunk holds the machine form of the
 // instruction as we're assembling.
 // This is going to need a refactor, there should probably be another layer of
@@ -272,7 +324,7 @@ type inst struct {
 	chunk    binaryChunk
 }
 
-type program []*inst
+type program []Node
 
 type assembler struct {
 	origin     int
@@ -281,6 +333,7 @@ type assembler struct {
 	sym        map[string]int
 	constants  map[string]int
 	exprParser expr.Parser
+	line       int
 }
 
 func (a *assembler) parseLine(line buf.Buffer) error {
@@ -296,7 +349,8 @@ func (a *assembler) parseLine(line buf.Buffer) error {
 
 func (a *assembler) parseLabel(line buf.Buffer) buf.Buffer {
 	label, remain := line.TakeWhile(buf.Letter)
-	a.currLabel = append(a.currLabel, label.String())
+	labelNode := LabelNode{Name: label.String(), position: a.line}
+	a.prg = append(a.prg, &labelNode)
 	if remain.StartsWith(buf.Char(':')) {
 		remain = remain.Advance(1)
 	}
@@ -310,10 +364,29 @@ func (a *assembler) parseOperation(line buf.Buffer) error {
 	}
 
 	op, remain := remain.TakeWhile(buf.Word)
-	if pseudo, found := pseudoOps[op.String()]; found {
-		return pseudo.fn(a, remain)
+	if pseudoKind, found := PseudoOpMap[op.String()]; found {
+		return a.parsePseudo(pseudoKind, remain)
 	}
 	return a.parseOpcode(op.String(), remain)
+}
+
+func (a *assembler) parsePseudo(pseudo PseudoOpKind, line buf.Buffer) error {
+	pseudoOp := PseudoOp{Kind: pseudo}
+	remain := line.Advance(line.Scan(buf.Whitespace))
+	for !remain.IsEmpty() {
+		expr, newRemain, err := a.exprParser.Parse(remain)
+		if err != nil {
+			return err
+		}
+		pseudoOp.Args = append(pseudoOp.Args, expr)
+		remain = newRemain
+		if remain.StartsWith(buf.Char(',')) {
+			remain = remain.Advance(1)
+		}
+	}
+	pseudoNode := PseudoNode{Pseudo: &pseudoOp, position: a.line}
+	a.prg = append(a.prg, &pseudoNode)
+	return nil
 }
 
 func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
@@ -329,35 +402,14 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 	if !remain.IsEmpty() || remain.StartsWith(buf.Char(';')) {
 		return fmt.Errorf("unexpected text %v", remain.String())
 	}
-	form, err := instructionEntry(i, operands.mode)
-	if err != nil {
-		return err
-	}
-	chunkMem := make([]uint8, form.bytes)
-	chunkMem[0] = form.opcode
-	if form.bytes >= 2 {
-		ok, err := operands.e.Eval(map[string]int{})
-		if !ok {
-			return err
-		}
-		arg, err := operands.e.Value()
-		if err != nil {
-			return fmt.Errorf("error getting expression value %v", err)
-		}
-		chunkMem[1] = uint8(arg & 0xff)
-		if form.bytes == 3 {
-			chunkMem[2] = uint8((arg >> 8) & 0xff)
-		}
-	}
 	instruction := inst{
 		labels:   append([]string{}, a.currLabel...),
 		op:       i,
 		operands: operands,
-		chunk:    binaryChunk{addr: 0, mem: chunkMem},
+		chunk:    binaryChunk{addr: 0},
 	}
-	a.prg = append(a.prg, &instruction)
-	a.currLabel = []string{}
-	// fmt.Printf("instruction %+v\n", instruction)
+	instructionNode := InstructionNode{inst: &instruction, position: a.line}
+	a.prg = append(a.prg, &instructionNode)
 	return nil
 }
 
@@ -469,6 +521,7 @@ func (a *assembler) parseFile(filename string) (err error) {
 }
 
 func (a *assembler) parseReader(r io.Reader) (err error) {
+	a.line = 1
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		upperLine := strings.ToUpper(scanner.Text())
@@ -476,6 +529,7 @@ func (a *assembler) parseReader(r io.Reader) (err error) {
 		if err != nil {
 			return
 		}
+		a.line++
 	}
 	return nil
 }
@@ -487,8 +541,12 @@ func (a *assembler) dumpAssembler(w io.Writer) {
 
 func (a *assembler) binaryImage() []uint8 {
 	bytes := []uint8{}
-	for _, val := range a.prg {
-		bytes = append(bytes, val.chunk.mem...)
+	for _, node := range a.prg {
+		// bytes = append(bytes, val.chunk.mem...)
+		switch n := node.(type) {
+		case *InstructionNode:
+			fmt.Printf("Process instruction %v\n", n.inst.op)
+		}
 	}
 	return bytes
 }
