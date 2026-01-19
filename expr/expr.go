@@ -205,7 +205,7 @@ func (p *Parser) Parse(line buf.Buffer) (n *Node, remain buf.Buffer, err error) 
 		var token Token
 		token, remain, err = p.parseToken(line)
 		if err != nil {
-			break
+			return
 		}
 
 		if token.typ == tokenNil {
@@ -281,8 +281,11 @@ func (p *Parser) Parse(line buf.Buffer) (n *Node, remain buf.Buffer, err error) 
 }
 
 func (p *Parser) parseToken(line buf.Buffer) (t Token, remain buf.Buffer, err error) {
-	if line.IsEmpty() {
+	// If there's nothing left in the buffer or we hit an experssion end
+	// character like a comma, end the parsing
+	if line.IsEmpty() || line.StartsWith(buf.Char(',')) {
 		t.typ = tokenNil
+		remain = line
 		return
 	}
 

@@ -109,6 +109,11 @@ func TestParse(t *testing.T) {
 			expectedNode:   Node{op: opAdd},
 			expectedRemain: "",
 		},
+		{
+			input:          "1-2,2+3",
+			expectedNode:   Node{op: opSub},
+			expectedRemain: ",2+3",
+		},
 	}
 	for _, tc := range tests {
 		p := Parser{}
