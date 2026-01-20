@@ -156,6 +156,14 @@ func (n *Node) String() string {
 	}
 }
 
+type UndefinedSymbolError struct {
+	Name string
+}
+
+func (e *UndefinedSymbolError) Error() string {
+	return fmt.Sprintf("undefined symbol: %s", e.Name)
+}
+
 func (n *Node) Eval(sym map[string]int) (bool, error) {
 	var ok bool
 	var err error
@@ -166,7 +174,7 @@ func (n *Node) Eval(sym map[string]int) (bool, error) {
 		case n.op == opIdentifier:
 			n.value, ok = sym[n.identifier]
 			if !ok {
-				return false, fmt.Errorf("Undefined symbol used: %s", n.identifier)
+				return false, &UndefinedSymbolError{Name: n.identifier}
 			}
 			n.evaluated = true
 		case n.op.isBinary():

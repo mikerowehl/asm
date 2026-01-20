@@ -198,28 +198,26 @@ func TestEvalBinding(t *testing.T) {
 	}
 }
 
+// TestEvalError checks to make sure we get the correct error back for an
+// undefined symbol. And then check to make sure the eval runs correctly if we
+// call again with the missing symbol supplied.
 func TestEvalError(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected int
-	}{
-		{
-			input:    "1+four",
-			expected: 3,
-		},
-	}
 	bindings := map[string]int{
 		"one":   1,
 		"two":   2,
 		"three": 3,
 	}
-	for _, tc := range tests {
-		p := Parser{}
-		b := buf.NewBuffer(tc.input)
-		n, _, e := p.Parse(b)
-		require.Nil(t, e)
-		eval, err := n.Eval(bindings)
-		require.False(t, eval)
-		require.NotNil(t, err)
-	}
+	p := Parser{}
+	b := buf.NewBuffer("1+four")
+	n, _, e := p.Parse(b)
+	require.Nil(t, e)
+	eval, err := n.Eval(bindings)
+	require.False(t, eval)
+	var undef *UndefinedSymbolError
+	require.ErrorAs(t, err, &undef)
+	bindings["four"] = 4
+	eval, err = n.Eval(bindings)
+	require.True(t, eval)
+	require.Nil(t, err)
+	require.Equal(t, 5, n.value)
 }
