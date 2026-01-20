@@ -165,6 +165,43 @@ func TestEval(t *testing.T) {
 	}
 }
 
+func TestEvalWhitespace(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{
+			input:    "1 +2",
+			expected: 3,
+		}, {
+			input:    "3 - 1",
+			expected: 2,
+		}, {
+			input:    "1 +2+  3",
+			expected: 6,
+		}, {
+			input:    "4- (2-1)",
+			expected: 3,
+		}, {
+			input:    "4  *   3    +9",
+			expected: 21,
+		}, {
+			input:    "4*(3+9)",
+			expected: 48,
+		},
+	}
+	for _, tc := range tests {
+		p := Parser{}
+		b := buf.NewBuffer(tc.input)
+		n, _, e := p.Parse(b)
+		require.Nil(t, e)
+		eval, err := n.Eval(map[string]int{})
+		require.True(t, eval)
+		require.Nil(t, err)
+		require.Equal(t, tc.expected, n.value)
+	}
+}
+
 func TestEvalBinding(t *testing.T) {
 	tests := []struct {
 		input    string
