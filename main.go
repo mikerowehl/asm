@@ -364,7 +364,7 @@ func (a *assembler) parseOperation(line buf.Buffer) error {
 	}
 
 	op, remain := remain.TakeWhile(buf.Word)
-	if pseudoKind, found := PseudoOpMap[op.String()]; found {
+	if pseudoKind, found := PseudoOpMap[strings.ToUpper(op.String())]; found {
 		return a.parsePseudo(pseudoKind, remain)
 	}
 	return a.parseOpcode(op.String(), remain)
@@ -524,8 +524,8 @@ func (a *assembler) parseReader(r io.Reader) (err error) {
 	a.line = 1
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		upperLine := strings.ToUpper(scanner.Text())
-		err = a.parseLine(buf.NewBuffer(upperLine))
+		// upperLine := strings.ToUpper(scanner.Text())
+		err = a.parseLine(buf.NewBuffer(scanner.Text()))
 		if err != nil {
 			return
 		}
