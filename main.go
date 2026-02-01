@@ -229,6 +229,24 @@ func instructionEntry(i Instruction, m AddressingMode) (OpcodeForm, error) {
 	return OpcodeForm{}, fmt.Errorf("invalid addressing mode for %s", InstructionStrings[i])
 }
 
+func maxSize(forms []OpcodeForm) uint8 {
+	max := uint8(0)
+	for _, form := range forms {
+		if form.bytes > max {
+			max = form.bytes
+		}
+	}
+	return max
+}
+
+func instructionMax(i Instruction) (uint8, error) {
+	forms, ok := InstructionSet[i]
+	if !ok {
+		return 0, fmt.Errorf("can't find instruction #%d in table", i)
+	}
+	return maxSize(forms), nil
+}
+
 type pseudoOpEntry struct {
 	fn func(a *assembler, line buf.Buffer) error
 }
@@ -321,6 +339,7 @@ type inst struct {
 	labels   []string
 	op       Instruction
 	operands Operands
+	size     uint8
 	chunk    binaryChunk
 }
 
@@ -394,6 +413,10 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 	if err != nil {
 		return err
 	}
+	maxBytes, err := instructionMax(i)
+	if err != nil {
+		return err
+	}
 	operands, remain, err := a.parseOperands(line)
 	if err != nil {
 		return err
@@ -406,6 +429,7 @@ func (a *assembler) parseOpcode(opcode string, line buf.Buffer) error {
 		labels:   append([]string{}, a.currLabel...),
 		op:       i,
 		operands: operands,
+		size:     maxBytes,
 		chunk:    binaryChunk{addr: 0},
 	}
 	instructionNode := InstructionNode{inst: &instruction, position: a.line}
@@ -524,7 +548,6 @@ func (a *assembler) parseReader(r io.Reader) (err error) {
 	a.line = 1
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		// upperLine := strings.ToUpper(scanner.Text())
 		err = a.parseLine(buf.NewBuffer(scanner.Text()))
 		if err != nil {
 			return
